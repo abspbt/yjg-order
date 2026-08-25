@@ -893,6 +893,9 @@ async function handleUpdateCampaign(request, env, campaignId) {
 // DELETE /campaigns/:campaign_id（Phase 6 新增）：只有這個檔期完全沒有任何訂單時才能刪除
 // （不分訂單狀態，取消的訂單也算），有訂單的檔期請改用 PATCH 把 status 改成 ended（結束檔期），
 // 跟 Phase 1 假資料版「有訂單不能刪、只能結束」的規則一致。
+// 連帶清掉 PickupSlots、Products 底下屬於這個檔期的資料，避免變成孤兒資料——
+// 檔期編號是「目前最大編號 +1」算出來的，刪除後編號會被下一個新檔期重複使用，
+// 沒清乾淨的舊商品就會被新檔期「借屍還魂」帶回來（實際發生過的 bug）。
 async function handleDeleteCampaign(env, campaignId) {
   const { accessToken, spreadsheetId } = await getAuthedContext(env);
   const found = await findRowByKey(accessToken, spreadsheetId, "Campaigns", "campaign_id", campaignId);
@@ -913,6 +916,15 @@ async function handleDeleteCampaign(env, campaignId) {
   if (thisCampaignSlots.length) {
     await deleteRows(accessToken, spreadsheetId, "PickupSlots", thisCampaignSlots.map((s) => s.__rowNumber));
   }
+
+  // 商品表也要一併清掉，不然這個檔期編號被刪除後，之後新檔期照樣是「目前最大編號 +1」，
+  // 沒清乾淨的舊商品就會被下一個重新產生的相同編號「借屍還魂」帶回來。
+  const allProducts = await getRowsWithNumbers(accessToken, spreadsheetId, "Products");
+  const thisCampaignProducts = allProducts.filter((p) => p.campaign_id === campaignId);
+  if (thisCampaignProducts.length) {
+    await deleteRows(accessToken, spreadsheetId, "Products", thisCampaignProducts.map((p) => p.__rowNumber));
+  }
+
   await deleteRows(accessToken, spreadsheetId, "Campaigns", [found.rowNumber]);
 
   return json({ ok: true });
