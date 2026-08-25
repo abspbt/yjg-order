@@ -417,6 +417,20 @@
     `worker/dashboard-single-file.js`）；Google Sheets 的 `Campaigns` 分頁**只需要加
     `low_stock_threshold` 一欄**（PR #62 原本說要加兩欄，`low_stock_buffer` 那欄已經不用了，
     如果已經照 PR #62 加了兩欄也沒關係，多的那欄留著不會有影響，只是不會再被讀取）
+- 修正刪除檔期時沒有一併清掉商品資料的漏洞（老闆回報新增「中秋節禮盒」檔期時已經把
+  「沿用上一檔商品清單」開關關掉，商品管理頁篩選這個新檔期卻還是滿的，PR #66）：
+  - 根因是 `DELETE /campaigns/:id` 原本只清 `Campaigns`、`PickupSlots` 兩張表，**沒有清
+    `Products`**；新檔期編號是「目前 `Campaigns` 表最大編號 +1」算出來的，跟 `Products`
+    表完全無關
+  - 推測經過：老闆第一次新增「中秋節禮盒」時沒注意到「沿用上一檔商品清單」開關預設是
+    開的，商品被複製進來；發現不對把那個檔期刪掉重建，但複製進來的商品留在 `Products`
+    表裡沒被清掉，變成孤兒資料；重建第二次「中秋節禮盒」時編號剛好被重複分配到，孤兒
+    商品資料就「借屍還魂」跑回來，看起來像開關沒生效
+  - 修法：`handleDeleteCampaign()` 刪除檔期時，連同底下的 `Products` 一併刪除，避免產生
+    孤兒資料；`worker/src/index.js`、`worker/dashboard-single-file.js`、`worker/README.md`
+    都已同步更新
+  - 老闆已手動到 Google Sheets 清掉這次異常殘留的商品資料，並透過 Cloudflare Dashboard
+    網頁編輯器重新部署 Worker
 
 Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 （今日 Dashboard、商品管理、訂單列表+付款確認、公告設定、
