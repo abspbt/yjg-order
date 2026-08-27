@@ -1,7 +1,7 @@
 // 歪嘴雞烘焙後台 PWA — Phase 6：串接真實 Worker API（js/api.js 的 Api）
 // 不再使用 localStorage 假資料，所有頁面的資料都即時向 Worker 拿。
 
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.0.1';
 
 const root = document.getElementById('app-root');
 const tabbarEl = document.getElementById('tabbar');
@@ -1593,29 +1593,51 @@ async function renderToggle() {
 
 // ================== Service Worker 更新提示 ==================
 if ('serviceWorker' in navigator) {
-  let refreshing = false;
+  // 若這次頁面載入本來就已經被 Service Worker 控制，之後任何 controllerchange
+  // 都代表「換了新版」——不能直接自動 location.reload()，老闆可能正在填訂單、
+  // 編輯商品，強制重整會把還沒送出的輸入清空。改成跳提示，由老闆自己按
+  // 「立即更新」。真正的首次安裝（controller 本來是 null）畫面還沒渲染任何
+  // 內容，重整沒有風險，可以靜默重整一次。
+  // （sw.js 的 install 階段一律呼叫 self.skipWaiting()，新版會直接在背景接管，
+  // 不會真的停在「等待中」，所以這裡不需要、也不會再送 SKIP_WAITING 訊息。）
+  const hadController = !!navigator.serviceWorker.controller;
+  let handled = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    refreshing = true;
-    location.reload();
+    if (handled) return;
+    handled = true;
+    if (hadController) {
+      showUpdateBanner();
+    } else {
+      location.reload();
+    }
   });
 
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(reg => {
-      if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner(reg);
+      if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner();
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            showUpdateBanner(reg);
+            showUpdateBanner();
           }
         });
+      });
+
+      // 老闆手機常從背景喚醒而非真正重新整理（例如切到 LINE 回訊息再切回
+      // 來），切回分頁、從 bfcache 復原時都主動再查一次 sw.js，不能只靠
+      // 瀏覽器自己的預設節流去檢查。
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update();
+      });
+      window.addEventListener('pageshow', (event) => {
+        if (event.persisted) reg.update();
       });
     }).catch(() => {});
   });
 }
 
-function showUpdateBanner(reg) {
+function showUpdateBanner() {
   if (document.querySelector('.update-banner')) return;
   const banner = el(`
     <div class="update-banner">
@@ -1624,9 +1646,9 @@ function showUpdateBanner(reg) {
     </div>
   `);
   banner.querySelector('button').addEventListener('click', () => {
-    // 一律用當下真正在等待的 worker，避免多次更新後按鈕綁定失效
-    reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
-    banner.remove();
+    // Service Worker 已經在背景接管（install 階段就會 skipWaiting），
+    // 這裡只是把畫面換成新版內容。
+    location.reload();
   });
   document.body.appendChild(banner);
 }
