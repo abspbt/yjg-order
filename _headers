@@ -1,0 +1,9 @@
+# sw.js 與 manifest.json 都要設 no-cache，避免瀏覽器或 Cloudflare 邊緣節點把它們
+# 當一般靜態資源快取住太久，延誤偵測到新版位元組的時機。只影響老闆後台 PWA
+# 這個部署專案（repo 根目錄），顧客訂購網站（site/）不是 PWA，不受影響。
+
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.json
+  Cache-Control: no-cache
