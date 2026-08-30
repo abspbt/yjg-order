@@ -683,7 +683,7 @@ async function handleCreateOrder(request, env) {
 
     const maxPerOrder = toNumber(product.max_per_order);
     if (maxPerOrder > 0 && quantity > maxPerOrder) {
-      return json({ ok: false, error: `${product.name} 每筆訂單最多只能訂 ${maxPerOrder} 袋` }, { status: 400 });
+      return json({ ok: false, error: `${product.name} 每筆訂單最多只能訂 ${maxPerOrder} ${product.unit || "袋"}` }, { status: 400 });
     }
 
     const unitPrice = toNumber(product.price);
@@ -814,7 +814,7 @@ async function handleCreateProduct(request, env) {
     return json({ ok: false, error: "請求格式錯誤，需要 JSON" }, { status: 400 });
   }
 
-  const { campaign_id, name, category, price, max_per_order, active, variant_group, variant_label } = body || {};
+  const { campaign_id, name, category, price, max_per_order, active, variant_group, variant_label, unit } = body || {};
 
   if (!campaign_id || !name) {
     return json({ ok: false, error: "缺少必要欄位（campaign_id、name）" }, { status: 400 });
@@ -836,6 +836,7 @@ async function handleCreateProduct(request, env) {
       isProductActive,
       variant_group || "",
       variant_label || "",
+      unit || "",
     ],
   ]);
 
@@ -852,6 +853,7 @@ async function handleCreateProduct(request, env) {
         active: isProductActive,
         variant_group: variant_group || "",
         variant_label: variant_label || "",
+        unit: unit || "",
       },
     },
     { status: 201 }
@@ -889,6 +891,7 @@ async function handleUpdateProduct(request, env, productId) {
   if (body.active !== undefined) updated.active = toBool(body.active);
   if (body.variant_group !== undefined) updated.variant_group = body.variant_group;
   if (body.variant_label !== undefined) updated.variant_label = body.variant_label;
+  if (body.unit !== undefined) updated.unit = body.unit;
 
   await updateRow(
     accessToken,
@@ -910,6 +913,7 @@ async function handleUpdateProduct(request, env, productId) {
       active: isActive(updated.active),
       variant_group: updated.variant_group || "",
       variant_label: updated.variant_label || "",
+      unit: updated.unit || "",
     },
   });
 }
@@ -960,6 +964,7 @@ async function handleAdminProducts(env) {
     ordered_quantity: orderedQtyByProduct[p.product_id] || 0,
     variant_group: p.variant_group || "",
     variant_label: p.variant_label || "",
+    unit: p.unit || "",
   }));
 
   return json({ ok: true, products: list });
@@ -1024,6 +1029,7 @@ async function copyProductsToCampaign(accessToken, spreadsheetId, fromCampaignId
       isActive(p.active),
       p.variant_group || "",
       p.variant_label || "",
+      p.unit || "",
     ];
   });
 
@@ -1530,6 +1536,7 @@ async function handleProducts(env) {
       ordered_quantity: orderedQtyByProduct[p.product_id] || 0,
       variant_group: p.variant_group || "",
       variant_label: p.variant_label || "",
+      unit: p.unit || "",
     }));
 
   return json({ ok: true, products: list });

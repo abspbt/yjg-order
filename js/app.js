@@ -870,7 +870,7 @@ async function renderProductsList() {
           <div class="product-thumb">🥖</div>
           <div class="product-main">
             <div class="product-name">${escapeHtml(p.name)}${p.variant_label ? ` <span style="color:var(--color-text-muted); font-weight:normal;">（${escapeHtml(p.variant_label)}）</span>` : ''}</div>
-            <div class="product-meta">${fmtMoney(p.price)} · 限購 ${p.max_per_order} 袋</div>
+            <div class="product-meta">${fmtMoney(p.price)} · 限購 ${p.max_per_order} ${escapeHtml(p.unit || '袋')}</div>
             <div class="product-ordered">已訂購 ${p.ordered_quantity}</div>
           </div>
         </button>
@@ -936,7 +936,7 @@ async function renderProductEdit(id) {
 
   const campaigns = campaignsData.campaigns || [];
   const data = isNew
-    ? { product_id: null, name: '', category: '', price: '', max_per_order: '', campaign_id: campaigns[0]?.campaign_id || '', active: true, variant_group: '', variant_label: '' }
+    ? { product_id: null, name: '', category: '', price: '', max_per_order: '', campaign_id: campaigns[0]?.campaign_id || '', active: true, variant_group: '', variant_label: '', unit: '' }
     : p;
 
   setContent(`
@@ -955,8 +955,12 @@ async function renderProductEdit(id) {
         <input class="field-input" id="f-price" type="number" inputmode="numeric" value="${data.price}" placeholder="0" />
       </div>
       <div class="field">
-        <label class="field-label">單筆訂單限購數量（袋）</label>
+        <label class="field-label">單筆訂單限購數量</label>
         <input class="field-input" id="f-max" type="number" inputmode="numeric" value="${data.max_per_order}" placeholder="0" />
+      </div>
+      <div class="field">
+        <label class="field-label">數量單位</label>
+        <input class="field-input" id="f-unit" value="${escapeHtml(data.unit || '')}" placeholder="例：盒、份、顆，不填預設為「袋」" />
       </div>
       <div class="field">
         <label class="field-label">所屬檔期</label>
@@ -1007,6 +1011,7 @@ async function renderProductEdit(id) {
       active: activeVal,
       variant_group: root.querySelector('#f-variant-group').value.trim(),
       variant_label: root.querySelector('#f-variant-label').value.trim(),
+      unit: root.querySelector('#f-unit').value.trim(),
     };
     const btn = e.currentTarget;
     btn.disabled = true;

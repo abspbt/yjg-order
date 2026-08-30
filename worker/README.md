@@ -167,6 +167,16 @@ npm run deploy
 
 老闆後台的商品管理頁目前還沒有介面可以填這兩欄（PWA 要等 Phase 6 才會做），這次先直接在 Google Sheets 手動輸入，或用 `POST /products`／`PATCH /products/:id` 這兩支 API 帶 `variant_group`／`variant_label` 欄位設定（見下方「老闆端寫入 API」）。
 
+### `Products` 分頁：再新增一欄（商品數量單位，中秋節禮盒改用「盒」時新增）
+
+在 `variant_label` 右邊（也就是最後一欄）新增：
+
+| 新欄位 | 說明 |
+|---|---|
+| `unit` | 這個商品的數量單位，顯示在商品卡的「NT$ xx / 單位」、「每人限購 x 單位」、後台商品列表跟限購超過的錯誤訊息裡。留空白時，前端跟 Worker 都會當作「袋」（沿用原本的預設值），舊商品不用補這一欄也不會壞 |
+
+老闆後台商品管理頁的新增/編輯商品頁面已經有「數量單位」欄位可以直接填（不填預設「袋」），也可以用 `POST /products`／`PATCH /products/:id` 帶 `unit` 欄位設定。
+
 ### `Orders` 分頁：新增三欄
 
 在最後一欄（`note`）右邊，依序新增：
@@ -252,7 +262,7 @@ npm run deploy
 
 回傳目前**還在預購中**的檔期（判斷方式見 `GET /campaigns`：`status` 是 `active` 且今天落在起訖日之間）、且上架中（`active` 勾選）的商品。`ordered_quantity` 是即時從 `Order_Items` 加總算出來的已訂購量（只算該商品所屬檔期、且訂單狀態不是 `cancelled` 的訂單），**不是**存在 Sheets 裡的欄位，延續 Phase 2 「不存彙總欄位」的原則。
 
-`variant_group`／`variant_label` 是顧客介面改版新增的大小規格欄位（見下方「商品大小規格（`Products` 新增欄位）」），沒有設定時回傳空字串 `""`。
+`variant_group`／`variant_label` 是顧客介面改版新增的大小規格欄位（見下方「商品大小規格（`Products` 新增欄位）」），沒有設定時回傳空字串 `""`。`unit` 是商品的數量單位欄位，沒有設定時回傳空字串 `""`，前端會當作「袋」處理。
 
 ```json
 {
@@ -267,7 +277,8 @@ npm run deploy
       "max_per_order": 10,
       "ordered_quantity": 12,
       "variant_group": "",
-      "variant_label": ""
+      "variant_label": "",
+      "unit": ""
     }
   ]
 }
@@ -452,12 +463,14 @@ npm run deploy
   "max_per_order": 5,
   "active": true,
   "variant_group": "V001",
-  "variant_label": "大　5顆/袋"
+  "variant_label": "大　5顆/袋",
+  "unit": "袋"
 }
 ```
 
 - `campaign_id`、`name` 為必填，其他欄位可省略（`active` 預設 `true`）
 - `variant_group`／`variant_label`（顧客介面改版新增）：同一組大/小規格的商品要填一樣的 `variant_group`，`variant_label` 是顯示在卡片上的規格文字（例如「大　5顆/袋」）；沒有大小規格的單一商品不用帶這兩個欄位
+- `unit`：這個商品的數量單位，不帶或帶空字串時，前端跟錯誤訊息一律當作「袋」
 - 商品編號自動產生，格式 `P001`、`P002`...，取現有商品裡最大編號 +1（不分檔期，跨檔期共用同一組編號）
 - 成功回傳 HTTP 201，內容跟 `GET /products` 裡單筆商品的格式一樣（多一個 `product_id`）
 
@@ -475,6 +488,10 @@ npm run deploy
 
 ```json
 { "variant_group": "V001", "variant_label": "小　8顆/袋" }
+```
+
+```json
+{ "unit": "盒" }
 ```
 
 - 找不到該 `product_id` 回 HTTP 404
@@ -551,7 +568,8 @@ npm run deploy
       "active": true,
       "ordered_quantity": 12,
       "variant_group": "",
-      "variant_label": ""
+      "variant_label": "",
+      "unit": ""
     }
   ]
 }
