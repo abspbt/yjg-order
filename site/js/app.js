@@ -563,14 +563,37 @@
     cartItems().forEach(function (item) {
       var row = document.createElement("div");
       row.className = "cart-detail-row";
-      row.innerHTML =
-        "<span>" + escapeHtml(item.name) + " × " + item.quantity + "</span><span>" + money(item.subtotal) + "</span>";
+
+      var label = document.createElement("span");
+      label.textContent = item.name + " × " + item.quantity;
+
+      var right = document.createElement("span");
+      right.className = "cart-detail-row-right";
+
+      var priceEl = document.createElement("span");
+      priceEl.className = "cart-detail-row-price";
+      priceEl.textContent = money(item.subtotal);
+
+      var removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "cart-item-remove";
+      removeBtn.setAttribute("aria-label", "移除 " + item.name);
+      removeBtn.textContent = "✕";
+      removeBtn.addEventListener("click", function () {
+        setQty(item.product_id, 0);
+      });
+
+      right.appendChild(priceEl);
+      right.appendChild(removeBtn);
+      row.appendChild(label);
+      row.appendChild(right);
       els.cartDetailList.appendChild(row);
     });
     if (state.deliveryMethod === "delivery") {
       var feeRow = document.createElement("div");
       feeRow.className = "cart-detail-row fee";
-      feeRow.innerHTML = "<span>低溫宅配運費</span><span>" + money(shippingFee()) + "</span>";
+      feeRow.innerHTML =
+        "<span>低溫宅配運費</span><span class=\"cart-detail-row-price\">" + money(shippingFee()) + "</span>";
       els.cartDetailList.appendChild(feeRow);
     }
   }
