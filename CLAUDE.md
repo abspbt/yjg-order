@@ -476,6 +476,28 @@
     各自用 `quantity_cap` 設定限量（已記在 `worker/README.md`）；真的要讓顧客網站正確
     支援多檔期同時開放，需要更大幅的前端改動（商品要標示所屬檔期、購物車跟送出訂單要
     按檔期分開），目前先不做
+- 修正商品自己的總量上限（`quantity_cap`）在顧客網站前端沒有生效的 bug（老闆實測回報，
+  PR #70）：
+  - 老闆設定「月滿·心意滿」商品總量上限 15、已訂購 11，理論上購物車最多只能再選 4 盒，
+    實測卻還能再選到 9 盒——正好等於當時檔期總量上限的剩餘量（25-16=9），不是商品自己的
+    剩餘量（15-11=4），可以判斷是抓錯了上限來源
+  - 根因是 `site/js/app.js` 的 `maxQtyForProduct()` 裡，`productCapMax` 誤用了跟
+    `campaignMax` 一樣的「`+ currentQty`」修正：`campaignMax` 需要加回 `currentQty`，
+    是因為 `campaignRemainingCap()` 是整個檔期**共用**的剩餘量，`cartCount()` 加總了
+    購物車裡所有商品（含這個商品自己），要把這個商品自己的份數加回來，才能算出「扣掉
+    購物車裡其他商品後，這個商品自己還能選多少」；但商品自己的總量上限**不是共用的**，
+    `product.remaining_quantity` 本身就是這個商品在購物車裡最多能選到的總量，跟本地
+    購物車已經選了多少無關，不該再加回 `currentQty`——這樣寫會導致 qty 每加 1、上限也
+    跟著加 1，變成永遠不會卡住
+  - ⚠️ **不是超賣風險**：這只是前端數量選擇器沒有正確卡住，後端 `POST /orders` 的商品
+    總量上限檢查（`productOrderedQuantity`／`quantity_cap` 比對）邏輯是對的，顧客真的
+    送出超過剩餘量的訂單一樣會被擋下，不會真的超賣；這次只是修前端體驗，讓顧客選購當下
+    就看到正確上限，不用送出才被擋
+  - 修法：拿掉 `productCapMax` 多餘的 `+ currentQty`，直接用
+    `product.remaining_quantity` 當作這個商品在購物車裡的總量上限
+  - 這次只改 `site/js/app.js`（顧客網站前端），**不用重新部署 Worker**、也不用改
+    Google Sheets：顧客網站是 Git 連結 `main` 分支自動部署（Cloudflare Pages），併入
+    main 後會自動生效
 
 Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 （今日 Dashboard、商品管理、訂單列表+付款確認、公告設定、
