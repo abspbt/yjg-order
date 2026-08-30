@@ -498,6 +498,21 @@
   - 這次只改 `site/js/app.js`（顧客網站前端），**不用重新部署 Worker**、也不用改
     Google Sheets：顧客網站是 Git 連結 `main` 分支自動部署（Cloudflare Pages），併入
     main 後會自動生效
+- 商品賣完時，數量選擇器改顯示「已額滿」文字，不再顯示灰色的 0 跟 +/- 按鈕（老闆測完
+  上一項修正後發現，把商品都選完、剩餘量歸零時，畫面看起來像壞掉，怕新顧客進來會誤會，
+  PR #71）：
+  - 只有「購物車裡目前是 0、而且不能再加」（`qty <= 0 且 remaining <= 0`）才會顯示
+    「已額滿」；已經加進購物車、只是到上限的情況不受影響，還是顯示一般的 stepper（「−」
+    按鈕仍可按，讓顧客把已選數量減少）
+  - 不管是商品自己的 `quantity_cap` 賣完、還是檔期共用的 `total_quantity_cap` 賣完，
+    都會顯示「已額滿」，因為兩種情況對顧客來說都是「這個商品現在不能訂」，不需要分開
+    處理
+  - `site/js/app.js` 新增 `buildSoldOutBadge()`，`buildProductCard()`（單一商品）、
+    `buildVariantGroupCard()`（大/小規格商品）都改成先判斷是否額滿、額滿就顯示這個
+    徽章取代 `buildStepper()`；`site/css/style.css` 新增 `.qty-soldout` 樣式（灰底圓角
+    徽章，跟既有的「每人限購」提示文字同一套配色）
+  - 這次也只改顧客網站前端，不用重新部署 Worker、不用改 Google Sheets，併入 main 後
+    自動生效
 
 Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 （今日 Dashboard、商品管理、訂單列表+付款確認、公告設定、
