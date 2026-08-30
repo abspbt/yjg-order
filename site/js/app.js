@@ -153,6 +153,12 @@
     return v === true || v === "TRUE" || v === "true" || v === "1";
   }
 
+  var ANNOUNCEMENT_ALIGNS = ["left", "center", "right"];
+
+  function announcementAlign(value) {
+    return ANNOUNCEMENT_ALIGNS.indexOf(value) !== -1 ? value : "center";
+  }
+
   function money(n) {
     return "NT$ " + Number(n || 0).toLocaleString("zh-Hant-TW");
   }
@@ -274,6 +280,7 @@
 
     if (isTrue(s.announcement_visible) && s.announcement_text) {
       els.announcementText.textContent = s.announcement_text;
+      els.announcementText.style.textAlign = announcementAlign(s.announcement_align);
       els.announcement.classList.remove("hidden");
     } else {
       els.announcement.classList.add("hidden");
