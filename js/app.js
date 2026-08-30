@@ -1114,11 +1114,20 @@ async function renderAnnouncement() {
 
   const settings = settingsData.settings || {};
   const MAX_LEN = 200;
+  const ALIGN_OPTIONS = [
+    { key: 'left', label: '置左' },
+    { key: 'center', label: '置中' },
+    { key: 'right', label: '置右' },
+  ];
+  const ALIGN_KEYS = ALIGN_OPTIONS.map(o => o.key);
+  let alignVal = ALIGN_KEYS.includes(settings.announcement_align) ? settings.announcement_align : 'center';
 
   function paint() {
     const text = root.querySelector('#f-text').value;
     root.querySelector('#char-count').textContent = `${text.length} / ${MAX_LEN}`;
-    root.querySelector('#preview').textContent = text || '（尚未輸入公告內容）';
+    const preview = root.querySelector('#preview');
+    preview.textContent = text || '（尚未輸入公告內容）';
+    preview.style.textAlign = alignVal;
   }
 
   setContent(`
@@ -1136,6 +1145,12 @@ async function renderAnnouncement() {
         <div class="field-hint" id="char-count">0 / ${MAX_LEN}</div>
       </div>
       <div class="field">
+        <label class="field-label">公告文字對齊</label>
+        <div class="chip-row" id="align-row" style="padding-bottom:0;">
+          ${ALIGN_OPTIONS.map(o => `<button type="button" class="chip ${alignVal === o.key ? 'active' : ''}" data-align="${o.key}">${o.label}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field">
         <div class="preview-label">顧客端預覽</div>
         <div class="preview-box" id="preview"></div>
       </div>
@@ -1151,6 +1166,15 @@ async function renderAnnouncement() {
     root.querySelector('#f-visible').classList.toggle('on', visibleVal);
   });
   root.querySelector('#f-text').addEventListener('input', paint);
+  root.querySelectorAll('#align-row [data-align]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      alignVal = btn.getAttribute('data-align');
+      root.querySelectorAll('#align-row [data-align]').forEach(b => {
+        b.classList.toggle('active', b === btn);
+      });
+      paint();
+    });
+  });
   paint();
 
   root.querySelector('#btn-save').addEventListener('click', async (e) => {
@@ -1161,6 +1185,7 @@ async function renderAnnouncement() {
       await Api.patch('/settings', {
         announcement_text: root.querySelector('#f-text').value,
         announcement_visible: boolToSetting(visibleVal),
+        announcement_align: alignVal,
       });
       dialog.success('公告已儲存');
       btn.disabled = false;

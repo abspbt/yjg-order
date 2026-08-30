@@ -313,6 +313,7 @@ npm run deploy
     "shop_address": "台中市西區美村路一段123號",
     "announcement_text": "本週六預購開放中！",
     "announcement_visible": "TRUE",
+    "announcement_align": "center",
     "preorder_open": "TRUE",
     "pause_message": "目前暫停接單，恢復時間將於粉絲頁公告，謝謝您的支持！",
     "shipping_fee": "150",
@@ -555,6 +556,7 @@ npm run deploy
 | `shop_address` | 店家地址 |
 | `announcement_text` | 公告文字 |
 | `announcement_visible` | 公告是否顯示（`TRUE`/`FALSE`） |
+| `announcement_align` | 公告文字對齊方式：`left`/`center`/`right`，沒填或值不合法時前端一律當作 `center`（維持原本的置中行為） |
 | `preorder_open` | 預購開關（`TRUE`/`FALSE`），老闆手動的臨時暫停開關；顧客端實際狀態還要看有沒有進行中的檔期，見 `GET /settings` 的 `preorder_open_effective` |
 | `pause_message` | 預購暫停時顯示的訊息 |
 | `shipping_fee` | 宅配運費金額（純數字，例如 `150`），顧客介面改版新增 |
