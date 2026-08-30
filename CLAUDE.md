@@ -431,6 +431,22 @@
     都已同步更新
   - 老闆已手動到 Google Sheets 清掉這次異常殘留的商品資料，並透過 Cloudflare Dashboard
     網頁編輯器重新部署 Worker
+- 新增商品數量單位（`unit`）欄位，解決中秋節禮盒正確單位應該是「盒」、不是「袋」的問題
+  （老闆設定中秋節禮盒時提出，PR #68）：
+  - 原本「袋」寫死在四個地方（顧客網站商品卡、老闆後台商品列表/限購欄位、`POST /orders`
+    超過限購數量時的錯誤訊息），沒有欄位可以照商品個別設定；不同商品類型（例如禮盒 vs
+    平常單品）需要各自的單位，硬改成「盒」會讓其他商品的單位變不對
+  - 比照既有 `variant_group`/`variant_label` 大小規格欄位的做法，`Products` 新增 `unit`
+    欄位：老闆後台商品編輯頁新增「數量單位」輸入框，沒填時前端跟錯誤訊息一律當作「袋」
+    （沿用原本預設值，舊商品不用補這一欄也不會壞）
+  - `worker/src/index.js`、`worker/dashboard-single-file.js`：`GET /products`、
+    `GET /admin/products`、`POST /products`、`PATCH /products/:id`、「沿用上一檔商品
+    清單」複製邏輯、超過限購數量的錯誤訊息都改讀商品自己的 `unit`；`js/app.js`、
+    `site/js/app.js`、`worker/README.md` 都已同步更新
+  - ⚠️ 這項改動**要重新部署 Worker 才會生效**（Cloudflare Dashboard 貼上
+    `worker/dashboard-single-file.js`），而且**需要老闆手動在 Google Sheets 的
+    `Products` 分頁最右邊（`variant_label` 右邊）加上 `unit` 一欄**才能真正設定不同單位
+    （沒加之前效果等同全部維持「袋」，不影響其他功能）；中秋節禮盒的商品記得把這欄填「盒」
 
 Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 （今日 Dashboard、商品管理、訂單列表+付款確認、公告設定、
