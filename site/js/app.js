@@ -428,8 +428,9 @@
     meta.innerHTML =
       '<span class="product-price">' +
       money(p.price) +
-      "</span> / 袋" +
-      (p.max_per_order ? "　每人限購 " + p.max_per_order + " 袋" : "");
+      "</span> / " +
+      escapeHtml(p.unit || "袋") +
+      (p.max_per_order ? "　每人限購 " + p.max_per_order + " " + escapeHtml(p.unit || "袋") : "");
     info.appendChild(name);
     info.appendChild(meta);
 
@@ -467,7 +468,7 @@
         '<span class="price">' +
         money(p.price) +
         "</span>" +
-        (p.max_per_order ? "每人限購 " + p.max_per_order + " 袋" : "");
+        (p.max_per_order ? "每人限購 " + p.max_per_order + " " + escapeHtml(p.unit || "袋") : "");
       priceRow.appendChild(priceBox);
 
       var qty = state.cart[p.product_id] || 0;
