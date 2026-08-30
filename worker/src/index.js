@@ -249,12 +249,35 @@ function campaignOrderedQuantity(campaignId, orders, orderItems) {
   );
 }
 
+// 單一商品「已訂購量」加總（只算未取消訂單），給商品自己的總量上限用。product_id 本來就
+// 只會屬於一個檔期，不用另外再篩 campaign_id。
+function productOrderedQuantity(productId, orders, orderItems) {
+  const countedOrderIds = new Set(
+    orders.filter((o) => o.order_status !== "cancelled").map((o) => o.order_id)
+  );
+  return orderItems.reduce(
+    (sum, item) =>
+      item.product_id === productId && countedOrderIds.has(item.order_id) ? sum + toNumber(item.quantity) : sum,
+    0
+  );
+}
+
 // 檔期剩餘量（給顧客看、也是前端數量選擇器能選的上限）。這裡一律是真實數字，不打折扣——
 // 原本考慮過「剩餘量偏低時刻意少顯示幾份」當緩衝，但這樣顯示的數字跟實際可購買數量不一致，
 // 有消費者保護法規上的疑慮，改成如實顯示 + Campaigns.low_stock_threshold 只用來決定要不要
 // 顯示低庫存提示（見 handleCampaigns() 的 low_stock 欄位、site/js/app.js 的免責文字提示）。
 function campaignRemainingQuantity(campaign, orderedQty) {
   const cap = toNumber(campaign.total_quantity_cap);
+  if (cap <= 0) return null; // 不限制
+  return Math.max(0, cap - orderedQty);
+}
+
+// 單一商品自己的總量上限（跟 max_per_order「單筆限購數量」是不同東西：這個是這個商品
+// 全部訂單合計的可販售上限，用來讓同一檔期裡的不同商品各自獨立限量，例如兩款中秋節
+// 禮盒放在同一檔期、各自賣完各自關閉，不會互相排擠）。算法比照 campaignRemainingQuantity，
+// 0 或空白代表不限制。
+function productRemainingQuantity(product, orderedQty) {
+  const cap = toNumber(product.quantity_cap);
   if (cap <= 0) return null; // 不限制
   return Math.max(0, cap - orderedQty);
 }
@@ -353,6 +376,25 @@ async function handleCreateOrder(request, env) {
     const maxPerOrder = toNumber(product.max_per_order);
     if (maxPerOrder > 0 && quantity > maxPerOrder) {
       return json({ ok: false, error: `${product.name} 每筆訂單最多只能訂 ${maxPerOrder} ${product.unit || "袋"}` }, { status: 400 });
+    }
+
+    // 商品自己的總量上限（跟下面檔期共用的 total_quantity_cap 是兩層獨立檢查，都要過）。
+    const productCap = toNumber(product.quantity_cap);
+    if (productCap > 0) {
+      const alreadyOrderedForProduct = productOrderedQuantity(product.product_id, existingOrders, existingOrderItems);
+      if (alreadyOrderedForProduct + quantity > productCap) {
+        const productRemaining = Math.max(0, productCap - alreadyOrderedForProduct);
+        return json(
+          {
+            ok: false,
+            error:
+              productRemaining > 0
+                ? `${product.name} 剩餘 ${productRemaining} ${product.unit || "袋"}，訂單需求 ${quantity} ${product.unit || "袋"}，請減少數量後再試`
+                : `${product.name} 已額滿，請選購其他商品`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const unitPrice = toNumber(product.price);
@@ -483,7 +525,8 @@ async function handleCreateProduct(request, env) {
     return json({ ok: false, error: "請求格式錯誤，需要 JSON" }, { status: 400 });
   }
 
-  const { campaign_id, name, category, price, max_per_order, active, variant_group, variant_label, unit } = body || {};
+  const { campaign_id, name, category, price, max_per_order, active, variant_group, variant_label, unit, quantity_cap } =
+    body || {};
 
   if (!campaign_id || !name) {
     return json({ ok: false, error: "缺少必要欄位（campaign_id、name）" }, { status: 400 });
@@ -506,6 +549,7 @@ async function handleCreateProduct(request, env) {
       variant_group || "",
       variant_label || "",
       unit || "",
+      toNumber(quantity_cap),
     ],
   ]);
 
@@ -523,6 +567,7 @@ async function handleCreateProduct(request, env) {
         variant_group: variant_group || "",
         variant_label: variant_label || "",
         unit: unit || "",
+        quantity_cap: toNumber(quantity_cap),
       },
     },
     { status: 201 }
@@ -561,6 +606,7 @@ async function handleUpdateProduct(request, env, productId) {
   if (body.variant_group !== undefined) updated.variant_group = body.variant_group;
   if (body.variant_label !== undefined) updated.variant_label = body.variant_label;
   if (body.unit !== undefined) updated.unit = body.unit;
+  if (body.quantity_cap !== undefined) updated.quantity_cap = toNumber(body.quantity_cap);
 
   await updateRow(
     accessToken,
@@ -583,6 +629,7 @@ async function handleUpdateProduct(request, env, productId) {
       variant_group: updated.variant_group || "",
       variant_label: updated.variant_label || "",
       unit: updated.unit || "",
+      quantity_cap: toNumber(updated.quantity_cap),
     },
   });
 }
@@ -634,6 +681,8 @@ async function handleAdminProducts(env) {
     variant_group: p.variant_group || "",
     variant_label: p.variant_label || "",
     unit: p.unit || "",
+    quantity_cap: toNumber(p.quantity_cap),
+    remaining_quantity: productRemainingQuantity(p, orderedQtyByProduct[p.product_id] || 0),
   }));
 
   return json({ ok: true, products: list });
@@ -699,6 +748,7 @@ async function copyProductsToCampaign(accessToken, spreadsheetId, fromCampaignId
       p.variant_group || "",
       p.variant_label || "",
       p.unit || "",
+      toNumber(p.quantity_cap),
     ];
   });
 
@@ -1208,6 +1258,9 @@ async function handleProducts(env) {
       variant_group: p.variant_group || "",
       variant_label: p.variant_label || "",
       unit: p.unit || "",
+      quantity_cap: toNumber(p.quantity_cap),
+      // 給前端數量選擇器當上限用，null 代表這個商品沒有自己的總量上限（不限制）。
+      remaining_quantity: productRemainingQuantity(p, orderedQtyByProduct[p.product_id] || 0),
     }));
 
   return json({ ok: true, products: list });

@@ -447,6 +447,35 @@
     `worker/dashboard-single-file.js`），而且**需要老闆手動在 Google Sheets 的
     `Products` 分頁最右邊（`variant_label` 右邊）加上 `unit` 一欄**才能真正設定不同單位
     （沒加之前效果等同全部維持「袋」，不影響其他功能）；中秋節禮盒的商品記得把這欄填「盒」
+- 新增商品自己的總量上限（`quantity_cap`）欄位，解決同一檔期多款商品各自限量的問題
+  （老闆設定兩款中秋節禮盒時回報，PR #69）：
+  - 老闆設了兩個檔期、各限量 10 盒，但顧客實際訂購時卻是兩檔期加總才到 10；追查後發現
+    顧客網站（`site/js/app.js`）從設計上就假設「同時只有一個檔期在跑」
+    （`state.campaign = campaigns[0]`），但 `GET /products` 會把所有還在預購中的檔期
+    商品合併顯示，導致數量上限跟送出訂單用的 `campaign_id` 都只認第一個檔期
+  - 跟老闆確認後，真正需求其實是「兩款不同的中秋節禮盒，各自要有不同的總量上限」，不是
+    真的要同時開兩個檔期——但系統原本沒有「單一商品自己的總量上限」機制，
+    `Campaigns.total_quantity_cap` 是整個檔期共用一個上限，`Products.max_per_order`
+    只是單筆訂單的限購數量，兩者都沒辦法讓同一檔期裡的不同商品各自獨立限量
+  - 修法：新增 `Products.quantity_cap`（商品自己的總量上限，跟 `max_per_order` 是不同
+    東西），跟檔期共用的 `total_quantity_cap` 是兩層獨立檢查，`POST /orders` 都會擋；
+    `worker/src/index.js`、`worker/dashboard-single-file.js` 新增
+    `productOrderedQuantity()`／`productRemainingQuantity()` 輔助函式，`GET /products`、
+    `GET /admin/products`、`POST /products`、`PATCH /products/:id`、「沿用上一檔商品
+    清單」複製邏輯都改讀/寫這個欄位；`site/js/app.js` 的數量選擇器、`js/app.js` 商品
+    編輯頁跟商品列表、`worker/README.md` 都已同步更新
+  - ⚠️ 這項改動**要重新部署 Worker 才會生效**（Cloudflare Dashboard 貼上
+    `worker/dashboard-single-file.js`），而且**需要老闆手動在 Google Sheets 的
+    `Products` 分頁最右邊（`unit` 右邊）加上 `quantity_cap` 一欄**才能真正設定商品各自
+    的總量（沒加之前效果等同不限制，不影響其他功能）；兩款中秋節禮盒記得放在**同一個
+    檔期**裡，各自的「商品總量上限」分別填入正確的限量
+  - ⚠️ **已知限制沒有徹底解決**：顧客網站目前還是只認 `GET /campaigns` 回傳的第一個
+    檔期，如果同一時間真的有兩個檔期的預購起訖日重疊，商品還是會混在同一個「選商品」
+    畫面、但取貨時段跟送出訂單只認第一個檔期，可能導致商品被誤判「不存在或已下架」而
+    擋單。目前的建議做法是**同一時間只讓一個檔期在跑**，想同時賣的商品都放進同一檔期、
+    各自用 `quantity_cap` 設定限量（已記在 `worker/README.md`）；真的要讓顧客網站正確
+    支援多檔期同時開放，需要更大幅的前端改動（商品要標示所屬檔期、購物車跟送出訂單要
+    按檔期分開），目前先不做
 
 Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 （今日 Dashboard、商品管理、訂單列表+付款確認、公告設定、
