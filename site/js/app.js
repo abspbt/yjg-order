@@ -383,6 +383,17 @@
     });
   }
 
+  // 完全不能加購（購物車裡目前是 0、也不能再加）時，不要顯示長得像壞掉的灰色 0 +/-，
+  // 改顯示「已額滿」文字，讓新進來的顧客一看就懂是賣完了、不是網頁故障。
+  // 已經加進購物車的商品就算到上限也不用顯示這個（qty > 0 時繼續用一般的 stepper，
+  // 「-」按鈕還是可以按，讓顧客把已選的數量減少）。
+  function buildSoldOutBadge() {
+    var badge = document.createElement("span");
+    badge.className = "qty-soldout";
+    badge.textContent = "已額滿";
+    return badge;
+  }
+
   function buildStepper(p, qty, remaining) {
     var stepper = document.createElement("div");
     stepper.className = "qty-stepper";
@@ -445,7 +456,7 @@
 
     card.appendChild(thumb);
     card.appendChild(info);
-    card.appendChild(buildStepper(p, qty, remaining));
+    card.appendChild(qty <= 0 && remaining <= 0 ? buildSoldOutBadge() : buildStepper(p, qty, remaining));
     return card;
   }
 
@@ -484,7 +495,7 @@
       var remaining = maxQtyForProduct(p, qty);
       var stepBox = document.createElement("div");
       stepBox.className = "variant-stepper-box";
-      stepBox.appendChild(buildStepper(p, qty, remaining));
+      stepBox.appendChild(qty <= 0 && remaining <= 0 ? buildSoldOutBadge() : buildStepper(p, qty, remaining));
       stepperRow.appendChild(stepBox);
     });
 
