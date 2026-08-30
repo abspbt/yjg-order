@@ -106,7 +106,12 @@
   function maxQtyForProduct(product, currentQty) {
     var perProductMax = product.max_per_order > 0 ? product.max_per_order : Infinity;
     var campaignMax = campaignRemainingCap() - cartCount() + currentQty;
-    return Math.max(0, Math.min(perProductMax, campaignMax));
+    // 商品自己的總量上限（跟 max_per_order「單筆限購」是不同東西）：product.remaining_quantity
+    // 是後端算好的、還沒扣掉這個瀏覽器目前購物車裡已選的數量，所以要把 currentQty 加回來，
+    // 邏輯跟上面 campaignMax 一樣。null 代表這個商品沒有自己的總量上限。
+    var productCapMax =
+      typeof product.remaining_quantity === "number" ? product.remaining_quantity + currentQty : Infinity;
+    return Math.max(0, Math.min(perProductMax, campaignMax, productCapMax));
   }
 
   var stepSections = {

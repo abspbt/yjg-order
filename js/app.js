@@ -871,7 +871,7 @@ async function renderProductsList() {
           <div class="product-main">
             <div class="product-name">${escapeHtml(p.name)}${p.variant_label ? ` <span style="color:var(--color-text-muted); font-weight:normal;">（${escapeHtml(p.variant_label)}）</span>` : ''}</div>
             <div class="product-meta">${fmtMoney(p.price)} · 限購 ${p.max_per_order} ${escapeHtml(p.unit || '袋')}</div>
-            <div class="product-ordered">已訂購 ${p.ordered_quantity}</div>
+            <div class="product-ordered">已訂購 ${p.ordered_quantity}${p.quantity_cap ? ` / 總量上限 ${p.quantity_cap}` : ''}</div>
           </div>
         </button>
         <div class="product-side">
@@ -936,7 +936,7 @@ async function renderProductEdit(id) {
 
   const campaigns = campaignsData.campaigns || [];
   const data = isNew
-    ? { product_id: null, name: '', category: '', price: '', max_per_order: '', campaign_id: campaigns[0]?.campaign_id || '', active: true, variant_group: '', variant_label: '', unit: '' }
+    ? { product_id: null, name: '', category: '', price: '', max_per_order: '', campaign_id: campaigns[0]?.campaign_id || '', active: true, variant_group: '', variant_label: '', unit: '', quantity_cap: '' }
     : p;
 
   setContent(`
@@ -961,6 +961,11 @@ async function renderProductEdit(id) {
       <div class="field">
         <label class="field-label">數量單位</label>
         <input class="field-input" id="f-unit" value="${escapeHtml(data.unit || '')}" placeholder="例：盒、份、顆，不填預設為「袋」" />
+      </div>
+      <div class="field">
+        <label class="field-label">商品總量上限</label>
+        <input class="field-input" id="f-quantity-cap" type="number" inputmode="numeric" value="${data.quantity_cap || ''}" placeholder="不填代表不限制" />
+        <div class="field-hint">這個商品全部訂單合計最多能賣幾份，賣完自動額滿；跟上面「單筆訂單限購數量」是不同東西，用來讓同一檔期裡不同商品各自獨立限量（例如兩款中秋節禮盒各自設定不同總量）</div>
       </div>
       <div class="field">
         <label class="field-label">所屬檔期</label>
@@ -1012,6 +1017,7 @@ async function renderProductEdit(id) {
       variant_group: root.querySelector('#f-variant-group').value.trim(),
       variant_label: root.querySelector('#f-variant-label').value.trim(),
       unit: root.querySelector('#f-unit').value.trim(),
+      quantity_cap: Number(root.querySelector('#f-quantity-cap').value) || 0,
     };
     const btn = e.currentTarget;
     btn.disabled = true;

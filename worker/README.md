@@ -177,6 +177,18 @@ npm run deploy
 
 老闆後台商品管理頁的新增/編輯商品頁面已經有「數量單位」欄位可以直接填（不填預設「袋」），也可以用 `POST /products`／`PATCH /products/:id` 帶 `unit` 欄位設定。
 
+### `Products` 分頁：再新增一欄（商品自己的總量上限，同一檔期放多款各自限量的商品時新增）
+
+在 `unit` 右邊（也就是最後一欄）新增：
+
+| 新欄位 | 說明 |
+|---|---|
+| `quantity_cap` | 這個商品自己的總量上限（所有訂單合計，不是單筆訂單限購數量，那個是 `max_per_order`）。留空白或填 `0` 代表不限制。用來讓**同一個檔期**裡的不同商品各自獨立限量（例如「月滿·心滿意」限量 10、「秋月·酥心」限量 15，放在同一檔期裡賣，各自賣完各自關閉，不會互相排擠或共用同一包扣打） |
+
+跟檔期共用的 `Campaigns.total_quantity_cap` 是**兩層獨立檢查**，`POST /orders` 兩個都會擋：檔期上限先擋（如果有設）、商品自己的上限也會擋（如果有設），沒設的那一層就跳過不檢查。老闆後台商品管理頁的新增/編輯商品頁面已經有「商品總量上限」欄位可以直接填，也可以用 `POST /products`／`PATCH /products/:id` 帶 `quantity_cap` 欄位設定。
+
+> ⚠️ **這個欄位是用來解決「兩個檔期同時開放時，顧客網站只認第一個檔期的上限、商品又會混在一起顯示」這個已知限制**：顧客網站（`site/js/app.js`）目前只會抓 `GET /campaigns` 回傳陣列裡的第一個檔期（`state.campaign = campaigns[0]`），如果同時有兩個檔期的預購起訖日重疊，商品會混在同一個「選商品」畫面，但取貨時段、送出訂單用的 `campaign_id` 都只認第一個檔期，可能導致商品被誤判「不存在或已下架」而擋單。**目前的建議做法是同一時間只讓一個檔期在跑**（把想同時賣的商品都放進同一個檔期，各自用 `quantity_cap` 設定限量），避免兩個檔期的預購起訖日重疊。
+
 ### `Orders` 分頁：新增三欄
 
 在最後一欄（`note`）右邊，依序新增：
@@ -262,7 +274,7 @@ npm run deploy
 
 回傳目前**還在預購中**的檔期（判斷方式見 `GET /campaigns`：`status` 是 `active` 且今天落在起訖日之間）、且上架中（`active` 勾選）的商品。`ordered_quantity` 是即時從 `Order_Items` 加總算出來的已訂購量（只算該商品所屬檔期、且訂單狀態不是 `cancelled` 的訂單），**不是**存在 Sheets 裡的欄位，延續 Phase 2 「不存彙總欄位」的原則。
 
-`variant_group`／`variant_label` 是顧客介面改版新增的大小規格欄位（見下方「商品大小規格（`Products` 新增欄位）」），沒有設定時回傳空字串 `""`。`unit` 是商品的數量單位欄位，沒有設定時回傳空字串 `""`，前端會當作「袋」處理。
+`variant_group`／`variant_label` 是顧客介面改版新增的大小規格欄位（見下方「商品大小規格（`Products` 新增欄位）」），沒有設定時回傳空字串 `""`。`unit` 是商品的數量單位欄位，沒有設定時回傳空字串 `""`，前端會當作「袋」處理。`quantity_cap` 是商品自己的總量上限（`0` 代表不限制），`remaining_quantity` 是即時算出來的剩餘量（`quantity_cap` 沒設定時是 `null`），前端數量選擇器直接拿這個當上限，用法跟 `GET /campaigns` 的 `remaining_quantity` 一樣，都是如實顯示真實數字、不打折扣。
 
 ```json
 {
@@ -278,7 +290,9 @@ npm run deploy
       "ordered_quantity": 12,
       "variant_group": "",
       "variant_label": "",
-      "unit": ""
+      "unit": "",
+      "quantity_cap": 0,
+      "remaining_quantity": null
     }
   ]
 }
@@ -396,6 +410,9 @@ npm run deploy
   - 擋下時的錯誤訊息會附上剩餘可訂數量，例如：`本檔期預購已達上限，剩餘 3 份，訂單需求 5 份，請減少數量後再試`；剩餘 0 份時顯示「本檔期預購已額滿，請等待下一檔期」
   - 這是「讀了再寫」的簡單檢查，不是原子鎖——跟訂單編號流水號一樣的取捨，極端情況下（幾乎同時送出兩張訂單）可能多接一兩份，老闆手動調整即可
   - 目前總量上限是「整個檔期共用一個上限」，不是每個取貨時段各自獨立算（`PickupSlots` 表沒有各時段自己的上限欄位）；大/小規格商品在 Sheets 裡本來就是不同 `product_id`、不同列，天生就各自獨立算，不受這次改動影響
+- **商品自己的總量上限（`Products.quantity_cap`，同一檔期放多款各自限量商品時新增）**：跟檔期總量上限是**兩層獨立檢查**，這裡是把這個商品自己所有「未取消」訂單的 `Order_Items` 數量加總，加上這筆新訂單要訂的數量，超過 `quantity_cap` 就擋下，回傳 HTTP 400。`quantity_cap` 是 0（或空白）代表不限制，不會做這項檢查
+  - 擋下時的錯誤訊息會附上這個商品剩餘可訂數量，例如：`月滿・心滿意 剩餘 3 盒，訂單需求 5 盒，請減少數量後再試`；剩餘 0 時顯示「月滿・心滿意 已額滿，請選購其他商品」
+  - 用來解決「同一檔期放兩款各自限量的商品（例如兩款中秋節禮盒），檔期共用的 `total_quantity_cap` 沒辦法讓兩款各自獨立算」的需求；跟檔期總量上限一樣是「讀了再寫」，不是原子鎖，一樣的取捨
 - 訂單編號格式 `ORD-YYYYMMDD-XXXX`（西元年月日 + 當天流水號，從 `0001` 開始），日期以台北時區計算
 - 這是簡單的「讀了再寫」（讀 `Orders` 找當天最大流水號 +1），不是原子操作——極端情況下（幾乎同時送出兩張訂單）理論上有極低機率撞號，跟總量控制走一樣的取捨（老闆手動處理即可），不做額外的鎖
 - **防公式注入（Formula Injection，安全性修正）**：`customer_name`、`note`、`delivery_address` 這三個顧客自填欄位寫入 Google Sheets 前，會先用 `sanitizeForSheets()` 檢查開頭是不是 `=`、`+`、`-`、`@`，是的話比照 `customer_phone` 防止開頭 0 被吃掉的做法加上前導單引號 `'`，強制存成純文字。原因：Sheets API 是用 `USER_ENTERED` 模式寫入，儲存格開頭是這幾個字元會被解析成公式，顧客如果故意填 `=IMPORTXML(...)` 之類的內容，老闆之後打開 Google Sheets 就會被自動執行，可能外洩其他欄位資料或做釣魚連結。回傳給顧客自己看的訂單確認資料（`order` 物件）不受影響，維持顧客原本輸入的樣子。
@@ -464,13 +481,15 @@ npm run deploy
   "active": true,
   "variant_group": "V001",
   "variant_label": "大　5顆/袋",
-  "unit": "袋"
+  "unit": "袋",
+  "quantity_cap": 30
 }
 ```
 
 - `campaign_id`、`name` 為必填，其他欄位可省略（`active` 預設 `true`）
 - `variant_group`／`variant_label`（顧客介面改版新增）：同一組大/小規格的商品要填一樣的 `variant_group`，`variant_label` 是顯示在卡片上的規格文字（例如「大　5顆/袋」）；沒有大小規格的單一商品不用帶這兩個欄位
 - `unit`：這個商品的數量單位，不帶或帶空字串時，前端跟錯誤訊息一律當作「袋」
+- `quantity_cap`：這個商品自己的總量上限，不帶或帶 `0` 代表不限制
 - 商品編號自動產生，格式 `P001`、`P002`...，取現有商品裡最大編號 +1（不分檔期，跨檔期共用同一組編號）
 - 成功回傳 HTTP 201，內容跟 `GET /products` 裡單筆商品的格式一樣（多一個 `product_id`）
 
@@ -492,6 +511,10 @@ npm run deploy
 
 ```json
 { "unit": "盒" }
+```
+
+```json
+{ "quantity_cap": 15 }
 ```
 
 - 找不到該 `product_id` 回 HTTP 404
@@ -569,7 +592,9 @@ npm run deploy
       "ordered_quantity": 12,
       "variant_group": "",
       "variant_label": "",
-      "unit": ""
+      "unit": "",
+      "quantity_cap": 0,
+      "remaining_quantity": null
     }
   ]
 }
