@@ -105,12 +105,16 @@
 
   function maxQtyForProduct(product, currentQty) {
     var perProductMax = product.max_per_order > 0 ? product.max_per_order : Infinity;
+    // campaignMax 要加回 currentQty，是因為 campaignRemainingCap() 是「整個檔期共用」的剩餘量，
+    // cartCount() 加總了購物車裡所有商品（包含這個商品自己），要把這個商品自己的份數加回來，
+    // 才能算出「扣掉購物車裡其他商品後，這個商品自己還能選到多少」。
     var campaignMax = campaignRemainingCap() - cartCount() + currentQty;
-    // 商品自己的總量上限（跟 max_per_order「單筆限購」是不同東西）：product.remaining_quantity
-    // 是後端算好的、還沒扣掉這個瀏覽器目前購物車裡已選的數量，所以要把 currentQty 加回來，
-    // 邏輯跟上面 campaignMax 一樣。null 代表這個商品沒有自己的總量上限。
-    var productCapMax =
-      typeof product.remaining_quantity === "number" ? product.remaining_quantity + currentQty : Infinity;
+    // 商品自己的總量上限則不是共用的，product.remaining_quantity 是後端算好的「這個商品」
+    // 剩餘可訂數量（只看已送出的訂單，跟這個瀏覽器目前購物車裡還沒送出的選擇無關），本身
+    // 就是這個商品在購物車裡最多能選到的總量，不用像 campaignMax 那樣加回 currentQty
+    // ——之前這裡誤用了跟 campaignMax 一樣的加法，導致 qty 每加 1，上限也跟著加 1，
+    // 變成永遠不會卡住。null 代表這個商品沒有自己的總量上限。
+    var productCapMax = typeof product.remaining_quantity === "number" ? product.remaining_quantity : Infinity;
     return Math.max(0, Math.min(perProductMax, campaignMax, productCapMax));
   }
 
