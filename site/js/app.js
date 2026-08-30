@@ -8,6 +8,7 @@
     shopName: document.getElementById("shop-name"),
     shopIntro: document.getElementById("shop-intro"),
     announcement: document.getElementById("announcement"),
+    announcementText: document.getElementById("announcement-text"),
     loading: document.getElementById("loading"),
     paused: document.getElementById("paused"),
     pauseMessage: document.getElementById("pause-message"),
@@ -272,7 +273,7 @@
     if (s.shop_intro) els.shopIntro.textContent = s.shop_intro;
 
     if (isTrue(s.announcement_visible) && s.announcement_text) {
-      els.announcement.textContent = s.announcement_text;
+      els.announcementText.textContent = s.announcement_text;
       els.announcement.classList.remove("hidden");
     } else {
       els.announcement.classList.add("hidden");
@@ -804,6 +805,7 @@
     window.addEventListener("resize", syncTabsHeight);
   }
   els.cartDetails.addEventListener("toggle", syncCartBarHeight);
+  els.announcement.addEventListener("toggle", syncTopInfoHeight);
 
   // ---------- 打字時讓出畫面空間 ----------
   // 手機鍵盤跳出來會吃掉大半個螢幕，只剩約 300～340px 可視高度，但上方固定區塊
