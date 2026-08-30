@@ -513,6 +513,17 @@
     徽章，跟既有的「每人限購」提示文字同一套配色）
   - 這次也只改顧客網站前端，不用重新部署 Worker、不用改 Google Sheets，併入 main 後
     自動生效
+- 顧客網站購物車明細清單每一列補上移除按鈕，不用切回選商品頁面按「−」按到 0 才能刪除
+  品項（老闆詢問購物車有沒有移除選項後主動提出，PR #72）：
+  - `site/js/app.js` 的 `renderCartDetailList()`：每一列品項旁新增一顆小型圓形 ✕ 按鈕，
+    點擊呼叫既有的 `setQty(product_id, 0)`，跟原本「按到 0 自動消失」是同一套邏輯，只是
+    多開一個更直覺的入口
+  - `site/css/style.css` 新增 `.cart-detail-row-right`、`.cart-detail-row-price`、
+    `.cart-item-remove` 樣式；原本用 `.cart-detail-row span:last-child` 選金額欄位的寫法
+    改成明確的 `.cart-detail-row-price` class（因為多了移除按鈕後，最後一個 `<span>`
+    變成包住金額+按鈕的容器，不再是金額本身），購物車列裡的宅配運費列也一併同步
+  - 這次也只改顧客網站前端，不用重新部署 Worker、不用改 Google Sheets，併入 main 後
+    自動生效
 
 Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 （今日 Dashboard、商品管理、訂單列表+付款確認、公告設定、
