@@ -144,13 +144,60 @@ body.keyboard-open .top-info {
   white-space: pre-line;
 }
 
+/* 跟購物車列一樣用原生 <details>/<summary> 做收合/展開——公告內容太多行時會
+   壓縮到下面選商品的畫面空間，預設展開（跟改版前行為一致，第一次進站看得到
+   完整公告），但可以收合騰出空間。 */
 .announcement {
   background: var(--color-info-bg);
   border-radius: var(--radius-sm);
-  padding: 12px 14px;
+  margin-bottom: 20px;
+}
+
+.announcement summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.announcement summary::-webkit-details-marker { display: none; }
+
+.announcement-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.announcement-summary .chevron {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  transition: transform 0.15s ease;
+}
+
+.announcement-summary .chevron::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 2.5px solid var(--color-text-muted);
+  border-bottom: 2.5px solid var(--color-text-muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.announcement[open] .announcement-summary .chevron { transform: rotate(180deg); }
+
+.announcement-text {
+  padding: 0 14px 14px;
   font-size: 14px;
   white-space: pre-line;
-  margin-bottom: 20px;
   line-height: 1.6;
   text-align: center;
 }
