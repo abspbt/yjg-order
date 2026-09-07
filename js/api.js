@@ -67,6 +67,10 @@ const Api = {
     }
 
     if (!res.ok || !data.ok) {
+      // 5xx 代表伺服器端出了未預期的錯誤，一律顯示固定文字，不把伺服器回傳的內容直接
+      // 貼到畫面上（避免任何從後端漏出來的技術細節被顯示、被截圖）；4xx 是使用者真的
+      // 需要看到的業務訊息（PIN 錯誤、找不到訂單、欄位沒填…），照原樣顯示。
+      if (res.status >= 500) throw new Error('系統暫時無法連線，請稍後再試');
       throw new Error((data && data.error) || `發生未知錯誤（${res.status}）`);
     }
 

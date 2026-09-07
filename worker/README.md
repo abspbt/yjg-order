@@ -88,7 +88,7 @@ cp .dev.vars.example .dev.vars
 npm run dev
 ```
 
-瀏覽器打開 `http://localhost:8787/api/test-sheets`，如果看到 `{"ok":true,"values":[...]}` 就代表 Service Account 授權成功、Worker 能讀到 Sheets 資料。
+瀏覽器打開 `http://localhost:8787/api/test-sheets`，如果看到 `{"ok":true,"connected":true,"rows_read":2}` 就代表 Service Account 授權成功、Worker 能讀到 Sheets 資料（這支是公開端點，所以只回報「連得上、讀到幾列」，不會回傳實際的儲存格內容）。
 
 也可以打開 `http://localhost:8787/products`、`/campaigns`、`/orders` 測試 Phase 3-2 新增的讀取 API（見下方「讀取 API」章節）。
 
@@ -131,7 +131,7 @@ curl -X PATCH http://localhost:8787/products/P001 \
 4. 把編輯器裡原本的預設程式碼**整個刪掉**
 5. 打開這個 repo 裡的 `worker/dashboard-single-file.js`，把整份內容複製、貼進編輯器
 6. 按右上角「部署」（Deploy / Save and deploy）
-7. 部署完，瀏覽器打開該 Worker 的網址加上 `/api/test-sheets`（Worker 網址可以在「概觀」頁複製，長得像 `https://ygg-hidden-star-9fe8.你的帳號.workers.dev`），確認看到 `{"ok":true,"values":[...]}`
+7. 部署完，瀏覽器打開該 Worker 的網址加上 `/api/test-sheets`（Worker 網址可以在「概觀」頁複製，長得像 `https://ygg-hidden-star-9fe8.你的帳號.workers.dev`），確認看到 `{"ok":true,"connected":true,"rows_read":2}`
 8. 也可以打開網址加上 `/products`、`/campaigns`，確認看到 `{"ok":true,"products":[...]}` 這類回應（如果 Sheets 裡還沒有 status 是 `active` 的檔期，會回傳空陣列，這是正常的，先去 `Campaigns` 分頁把某個檔期的 `status` 改成 `active` 再測試看看）
 9. `/orders`（GET）跟所有老闆專用的寫入 API 從 Phase 3-5 開始都需要登入 token，瀏覽器網址列沒辦法測，要用 curl 或 Postman（見下方「PIN 登入 API」章節）
 
@@ -711,6 +711,28 @@ Authorization: Bearer eyJleHAiOjE3MjM0NTY3ODl9.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ### 這支 token 是怎麼運作的
 
 Token 是 Worker 自己用 `TOKEN_SECRET` 簽出來的一串「到期時間 + HMAC-SHA256 簽章」，不是存在 Google Sheets 或任何資料庫裡的 session——這樣才不用額外的 D1/KV，Worker 收到請求時純算術驗證簽章對不對、有沒有過期即可。也因為這樣，**目前沒有「登出」或「強制某支 token 失效」的功能**：token 一旦發出去，在 12 小時內都有效，直到自然過期為止。如果要提早讓某支 token 失效（例如懷疑外流），目前唯一的辦法是去 Cloudflare Dashboard 換掉 `TOKEN_SECRET` 重新部署，這樣所有舊 token（包含老闆自己手機上還沒過期的）都會一起失效，要重新登入。這個取捨對一人小商家來說夠用，先不做更複雜的機制。
+
+## 錯誤訊息與排錯（資安相關）
+
+這支 Worker 有好幾支**公開、不需要登入**的端點（`GET /settings`、`GET /products`、`GET /campaigns`、`POST /orders`、`POST /auth/login`、`GET /api/test-sheets`），任何人都打得到，所以**回傳出去的錯誤字串等於公開內容**。
+
+因此所有「未預期的錯誤」（Google Sheets 讀寫失敗、換 access token 失敗、程式本身出錯…）對外一律只回這一句固定文字：
+
+```json
+{ "ok": false, "error": "系統暫時無法連線，請稍後再試" }
+```
+
+（HTTP 500）
+
+原本的做法是把 `err.message` 直接回傳，而那些訊息裡夾帶了 Google API 的**原始回應內容**，可能包含試算表 ID、Service Account 信箱、分頁/欄位名稱等資訊，等於免費送線索給想找漏洞的人，已經修掉。
+
+**那要怎麼排錯？** 詳細錯誤（含堆疊）改成寫進 Cloudflare 的日誌：Cloudflare Dashboard →
+「運算 (Workers)」→ 點進 `ygg-hidden-star-9fe8` → 「記錄 / Logs」分頁 → 開啟「即時記錄 (Real-time logs)」，重現一次問題就會看到 `[Worker] 未處理的錯誤 GET /products: ...` 這樣的紀錄。
+
+需要注意的分界：
+
+- **4xx 是給使用者看的業務訊息**（「本檔期預購已達上限，剩餘 3 份」「PIN 錯誤」「找不到訂單」…），這些照原樣回傳、照原樣顯示在畫面上，不受影響
+- **5xx 才是被遮蔽的技術錯誤**，顧客網站（`site/js/app.js`）跟老闆後台 PWA（`js/api.js`）也各自加了一層保險：收到 5xx 一律顯示固定文字，不把伺服器回傳的內容貼到畫面上
 
 ## 檔案結構
 
