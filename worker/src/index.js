@@ -28,6 +28,18 @@ function json(data, init = {}) {
   });
 }
 
+// 未預期的錯誤一律對外回這句固定文字。Google API 失敗時丟出來的錯誤訊息會夾帶原始回應
+// 內容（可能含試算表 ID、Service Account 信箱、內部欄位/分頁名稱），這支 Worker 又有好幾支
+// 公開端點（GET /settings、GET /products、GET /campaigns、POST /orders、POST /auth/login），
+// 任何人都打得到——直接把 err.message 回出去等於公開這些線索。詳細錯誤只用 console.error
+// 寫進 Cloudflare 後台的即時日誌（Workers → 記錄），老闆排錯時去那裡看。
+const GENERIC_ERROR_MESSAGE = "系統暫時無法連線，請稍後再試";
+
+function serverError(err, context) {
+  console.error(`[Worker] ${context}:`, err && err.stack ? err.stack : err);
+  return json({ ok: false, error: GENERIC_ERROR_MESSAGE }, { status: 500 });
+}
+
 function toNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -55,7 +67,14 @@ function sanitizeForSheets(value) {
 }
 
 async function getAuthedContext(env) {
-  const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_KEY);
+  let serviceAccount;
+  try {
+    serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_KEY);
+  } catch {
+    // 刻意不把 JSON.parse 原本的錯誤往外丟：它的訊息會夾帶解析失敗位置附近的原文，
+    // 也就是 Service Account 金鑰的片段，連 Cloudflare 的日誌裡都不該留下。
+    throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY 格式錯誤，無法解析");
+  }
   const accessToken = await getAccessToken(serviceAccount);
   return { accessToken, spreadsheetId: env.SPREADSHEET_ID };
 }
@@ -1377,10 +1396,12 @@ export default {
       }
 
       // Phase 3-1 驗收用的測試 endpoint，繼續保留方便之後排錯。
+      // 這支是公開的（誰都能打），所以只回報「有沒有成功連上 Google Sheets」，
+      // 不再把讀到的儲存格內容原封不動回傳出去。
       if (url.pathname === "/api/test-sheets") {
         const { accessToken, spreadsheetId } = await getAuthedContext(env);
         const values = await getValues(accessToken, spreadsheetId, "Settings!A1:B2");
-        return json({ ok: true, values });
+        return json({ ok: true, connected: true, rows_read: values.length });
       }
 
       // 顧客網站要讀的商品/檔期/店家設定資訊，公開不需要登入。
@@ -1406,7 +1427,7 @@ export default {
 
       return json({ ok: false, error: "Not found" }, { status: 404 });
     } catch (err) {
-      return json({ ok: false, error: err.message }, { status: 500 });
+      return serverError(err, `未處理的錯誤 ${request.method} ${url.pathname}`);
     }
   },
 };

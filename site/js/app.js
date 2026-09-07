@@ -210,6 +210,10 @@
       throw new Error("伺服器回應格式錯誤");
     }
     if (!res.ok || !data.ok) {
+      // 5xx 代表伺服器端出了未預期的錯誤，一律顯示固定文字，不把伺服器回傳的內容直接
+      // 貼到畫面上（避免任何從後端漏出來的技術細節被顯示給顧客看）；4xx 是顧客真的需要
+      // 看到的業務訊息（已額滿、超過限購數量、欄位沒填…），照原樣顯示。
+      if (res.status >= 500) throw new Error("系統暫時無法連線，請稍後再試");
       throw new Error(data && data.error ? data.error : "發生未知錯誤（" + res.status + "）");
     }
     return data;
