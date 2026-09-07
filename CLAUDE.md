@@ -88,6 +88,10 @@
     預設行為（避免測試用網址被公開索引/存取），不影響正式的自訂網域，不用特別處理
   - `bagel-order`/`cake-order` 頁目前只有 LINE 好友連結，還沒有連到 `order.yjg-bakery.com`
     這個正式訂購網址，要不要加上、怎麼加，之後可以另外討論
+- ✅ 第二輪 Worker API 安全性修正（老闆看到別的專案被指出同樣問題，主動拿來對照檢查，
+  PR #76）：Worker 最外層的 `catch` 原本直接把 `err.message`（夾帶 Google API 的完整
+  原始回應內容）回給呼叫端，而顧客網站跟老闆後台又都會把這個字串直接顯示在畫面上，
+  改成對外一律回固定文字、詳細錯誤只寫進 Cloudflare 即時記錄，詳見下方「近期優化備註」
 
 **Phase 3-1 備註**：
 - 已建立 Google Cloud Service Account，金鑰以「秘密」類型設定在 Cloudflare Dashboard 的 Worker 環境變數（`SPREADSHEET_ID`、`GOOGLE_SERVICE_ACCOUNT_KEY`），沒有寫進程式碼或 repo
@@ -524,6 +528,43 @@
     變成包住金額+按鈕的容器，不再是金額本身），購物車列裡的宅配運費列也一併同步
   - 這次也只改顧客網站前端，不用重新部署 Worker、不用改 Google Sheets，併入 main 後
     自動生效
+- 修正 Worker 把 Google API 原始錯誤訊息整包回傳給呼叫端的資訊外洩問題（老闆看到別的
+  專案的安全檢查報告指出同樣問題，主動拿來對照檢查這個專案，PR #76）：
+  - 漏洞的源頭只有一個地方——`worker/src/index.js` 最外層的 `catch` 直接把 `err.message`
+    回給呼叫端；而 `sheets.js`／`googleAuth.js` 有 **6 處**把 Google API 的完整原始回應
+    內容包進錯誤訊息裡（例如 `讀取 Google Sheets 失敗 (403): {Google 回的原文}`），這些
+    訊息就順著那一行整包回出去，裡面可能含試算表 ID、Service Account 信箱、分頁/欄位名稱
+  - **為什麼老闆後台跟顧客網站都會看到**：這支 Worker 有好幾支公開不需登入的端點
+    （`GET /settings`、`/products`、`/campaigns`、`POST /orders`、`POST /auth/login`），
+    任何人都打得到，回傳的字串等於公開內容；而 `js/api.js`（後台 PWA）跟
+    `site/js/app.js`（顧客網站）又都會把 API 回的 `error` 直接顯示在畫面上（toast、
+    彈窗、送出失敗提示），所以顧客的手機螢幕上也可能出現這些技術細節
+  - 順帶抓到同一類的另外兩個問題：`getAuthedContext()` 的
+    `JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_KEY)` 如果失敗，JS 的錯誤訊息會夾帶解析失敗
+    位置附近的原文，也就是 **Service Account 金鑰片段**；`GET /api/test-sheets` 是公開
+    端點，卻會把讀到的 `Settings` 儲存格內容原樣回傳
+  - 修法（照安全檢查報告建議的做法：對外固定文字、細節留在 Cloudflare 後台）：新增
+    `GENERIC_ERROR_MESSAGE` 與 `serverError()`，未預期的錯誤一律回「系統暫時無法連線，
+    請稍後再試」（HTTP 500），詳細錯誤含堆疊改用 `console.error` 寫進 Cloudflare 即時
+    記錄；`getAuthedContext()` 包住 `JSON.parse` 改丟不含內容的固定訊息；
+    `GET /api/test-sheets` 改成只回 `connected`／`rows_read`，不回儲存格內容
+  - ⚠️ **4xx 的業務訊息完全不受影響**：「本檔期預購已達上限，剩餘 3 份」「PIN 錯誤」
+    「每筆訂單最多只能訂 2 盒」這些顧客跟老闆真的需要看到的訊息照原樣顯示，只有 5xx
+    的技術錯誤被遮蔽成固定文字
+  - 前端兩站各加一層保險：`js/api.js`、`site/js/app.js` 收到 5xx 一律顯示固定文字，
+    不把伺服器回傳的內容貼到畫面上
+  - ⚠️ **之後排錯要去哪裡看**：Cloudflare Dashboard →「運算 (Workers)」→ 點進
+    `ygg-hidden-star-9fe8` →「記錄 / Logs」分頁 →「即時記錄 (Real-time logs)」，重現一次
+    問題就會看到 `[Worker] 未處理的錯誤 GET /products: ...` 這樣的紀錄。這段也寫進
+    `worker/README.md` 新增的「錯誤訊息與排錯」章節
+  - 測試方式：用 stub 模擬 Google Sheets 回 403（回應內容故意放入 Service Account 信箱
+    與試算表 ID），打 `/products`、`/settings`、`/api/test-sheets` 三支都只回固定文字、
+    無任何外洩，敏感內容只出現在 `console.error`；另外確認 404／405／401 這些原本就是
+    固定文字的路徑沒被改壞，`index.js` 其餘 8 個 `catch` 區塊也都只回「請求格式錯誤，
+    需要 JSON」這類固定訊息
+  - `worker/src/index.js`、`worker/dashboard-single-file.js`、`worker/README.md`、
+    `js/api.js`、`site/js/app.js` 都已同步更新，老闆已透過 Cloudflare Dashboard 網頁
+    編輯器重新部署 Worker
 
 Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 （今日 Dashboard、商品管理、訂單列表+付款確認、公告設定、
