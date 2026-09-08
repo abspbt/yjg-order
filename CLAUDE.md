@@ -587,6 +587,28 @@
   - `worker/src/googleAuth.js`、`worker/src/sheets.js`、`worker/dashboard-single-file.js`、
     `worker/README.md` 都已同步更新，老闆已透過 Cloudflare Dashboard 網頁編輯器重新部署
   - 純粹是後端內部效能優化，不影響任何 API 的請求/回應格式，也不用改 Google Sheets
+- ✅ 修正 `PATCH /campaigns/:id` 儲存檔期時把取貨時段整批作廢的資料遺失 bug（老闆回報後台
+  看不到取貨時間，直接合併進 main，未走 PR）：
+  - 追查根因：老闆後台「編輯檔期」頁面**每次儲存都會把目前的 `pickup_slots` 整包送出**，
+    就算只是改檔期名稱、總量上限這種跟時段完全無關的欄位也一樣；而 Worker 原本不管內容
+    有沒有變，只要收到 `pickup_slots` 就把該檔期底下所有 `PickupSlots` 整批刪除、重新
+    產生一批全新的 `slot_id`——導致已經送出訂單裡存的 `pickup_slot_id` 全部找不到對應
+    資料，取貨時間憑空消失
+  - 這次實際發生：C003 檔期的取貨時段被整批從 `S037`～`S047` 重編成 `S059`～`S069`
+    （日期時段內容完全沒變，只是編號往後挪了 22 號），已經送出的訂單裡還留著舊的
+    slot_id，後台/試算表都對不到取貨時間；靠 Google 試算表「版本記錄」把改動前的
+    `PickupSlots` 內容調出來，用日期比對出舊新 slot_id 對照表，手動把受影響訂單的
+    `pickup_slot_id` 改成新編號補回來
+  - 修法（`worker/src/index.js`、`worker/dashboard-single-file.js`）：改成用
+    `date` + `time_range` 比對新舊時段內容——**內容沒變的時段保留原本 `slot_id` 不重新
+    產生，只有真的新增/刪除的才動**；如果要刪除的時段已經有訂單在用，直接擋下來回
+    HTTP 400（比照 `DELETE /campaigns/:id` 既有的保護邏輯，不分訂單狀態，取消的訂單
+    也算），不會再讓訂單的取貨時間變成孤兒資料
+  - `worker/README.md` 同步更新說明這個行為（含刻意加註「不要改回整批覆蓋」提醒未來
+    不要走回頭路）
+  - ⚠️ 這項改動**要重新部署 Worker 才會生效**，已透過 Cloudflare Dashboard 網頁編輯器
+    重新部署；已經被這個 bug 弄丟 slot_id 對照關係的舊訂單，只能靠 Google 試算表版本
+    記錄手動救回來，修好的程式碼只能防止**之後**再發生，救不回已經遺失的舊資料
 
 Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 （今日 Dashboard、商品管理、訂單列表+付款確認、公告設定、
