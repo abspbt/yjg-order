@@ -15,10 +15,7 @@ export async function getValues(accessToken, spreadsheetId, range) {
   return data.values || [];
 }
 
-// 讀一整張表，用第一列當欄位名稱，把每一列轉成物件。
-// 傳整個分頁名稱當 range（例如 "Products"）就會讀到該分頁所有已使用的儲存格。
-export async function getSheetRows(accessToken, spreadsheetId, sheetName) {
-  const values = await getValues(accessToken, spreadsheetId, sheetName);
+function rowsToObjects(values) {
   if (values.length === 0) return [];
 
   const [header, ...rows] = values;
@@ -31,6 +28,35 @@ export async function getSheetRows(accessToken, spreadsheetId, sheetName) {
       });
       return obj;
     });
+}
+
+// 併發時（例如老闆後台首頁一次打好幾支 API，好幾支都要讀同一張表）合併成同一次
+// Google Sheets 讀取，讀完立刻把記錄清掉——**不是加 TTL 的快取**，下一次呼叫
+// （哪怕只隔 1 毫秒）一定會重新真的打一次 Google Sheets，不會回傳舊資料。
+// 這點很重要：後台之前特地把 API 改成不快取，才修好「新訂單不會即時顯示」的 bug
+// （見 CLAUDE.md 近期優化備註），這裡只解決「同一瞬間的併發請求重複讀取」，
+// 不能讓資料出現任何時間差的舊值。
+const inflightSheetReads = new Map();
+
+// 讀一整張表，用第一列當欄位名稱，把每一列轉成物件。
+// 傳整個分頁名稱當 range（例如 "Products"）就會讀到該分頁所有已使用的儲存格。
+export async function getSheetRows(accessToken, spreadsheetId, sheetName) {
+  const key = `${spreadsheetId}::${sheetName}`;
+  if (inflightSheetReads.has(key)) {
+    return inflightSheetReads.get(key);
+  }
+
+  const promise = (async () => {
+    const values = await getValues(accessToken, spreadsheetId, sheetName);
+    return rowsToObjects(values);
+  })();
+  inflightSheetReads.set(key, promise);
+
+  try {
+    return await promise;
+  } finally {
+    inflightSheetReads.delete(key);
+  }
 }
 
 // 把資料列附加到某張表的最後面。rows 是二維陣列，每個內層陣列的欄位順序
