@@ -565,6 +565,28 @@
   - `worker/src/index.js`、`worker/dashboard-single-file.js`、`worker/README.md`、
     `js/api.js`、`site/js/app.js` 都已同步更新，老闆已透過 Cloudflare Dashboard 網頁
     編輯器重新部署 Worker
+- ✅ 優化登入後台之後讀取比較久的問題（老闆回報，直接合併進 main，未走 PR）：追查發現
+  每支 API（`GET /settings`、`/orders`、`/admin/campaigns`、`/admin/products`…）進來都會
+  各自重新用 Service Account 簽一次 JWT、重新跟 Google OAuth 換一次 access token，而後台
+  首頁一次會併發打上面這 4 支 API，等於同時觸發 4 次「簽章 + 換 token」的網路往返；另外
+  `/orders`、`/admin/products` 又各自重複讀了一次整張 `Orders`／`Order_Items`
+  - `worker/src/googleAuth.js`：`getAccessToken()` 加上 access token 快取（module 層
+    變數），在有效期內（提前 60 秒視為過期）重複利用，不用每支 API 都重新換一次；同一波
+    併發請求同時發現快取是空的，會共用同一個換 token 的 Promise，不會重複打好幾次
+    Google OAuth
+  - `worker/src/sheets.js`：`getSheetRows()` 加上併發讀取合併（`inflightSheetReads`）——
+    同一瞬間有好幾支 API 要讀同一張表時，合併成一次真正的 Google Sheets 讀取，讀完立刻
+    把記錄清掉
+  - ⚠️ **這兩個都不是會讓資料變舊的快取**：access token 只是授權憑證，跟 Sheets 裡的
+    實際資料無關；`getSheetRows` 的合併只發生在「完全同時」的請求之間，一讀完立刻清掉
+    記錄，下一次呼叫（哪怕只隔 1 毫秒）一定會重新真的打一次 Google Sheets——這點特別
+    重要，因為之前為了修「新訂單不會即時顯示」的 bug，特地把後台 API 全部改成不快取
+    （`js/api.js` 的 `cache: 'no-store'`），這次優化沒有把那個 bug 帶回來
+  - 兩個快取都是 module 層變數，只在同一個 Worker isolate 存活期間有效，isolate 冷啟動
+    或被 Cloudflare 回收就會重來，這是可以接受的代價，不影響正確性
+  - `worker/src/googleAuth.js`、`worker/src/sheets.js`、`worker/dashboard-single-file.js`、
+    `worker/README.md` 都已同步更新，老闆已透過 Cloudflare Dashboard 網頁編輯器重新部署
+  - 純粹是後端內部效能優化，不影響任何 API 的請求/回應格式，也不用改 Google Sheets
 
 Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 （今日 Dashboard、商品管理、訂單列表+付款確認、公告設定、
