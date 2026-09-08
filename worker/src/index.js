@@ -900,6 +900,51 @@ async function handleUpdateCampaign(request, env, campaignId) {
     current[key] = row[i] !== undefined ? row[i] : "";
   });
 
+  // 先算好取貨時段要怎麼異動、有沒有時段因為已經有訂單引用而不能刪，驗證沒問題才動手寫入，
+  // 避免「檔期基本資料改成功、時段卻因為驗證失敗沒改」的半套結果。
+  //
+  // ⚠️ 這裡的比對邏輯是為了修一個實際發生過的資料遺失 bug：原本不管時段內容有沒有變，
+  // 只要請求裡帶了 pickup_slots，就會把這個檔期底下所有 PickupSlots 整批刪掉、重新產生
+  // 一批全新的 slot_id——但老闆後台「編輯檔期」頁面每次儲存都會把目前的時段列表整包送出，
+  // 就算只是改檔期名稱、總量上限這些跟時段完全無關的欄位也一樣。結果是已經送出的訂單
+  // 裡存的 pickup_slot_id 全部找不到對應的 PickupSlots 列，訂單的取貨時間就這樣憑空消失。
+  // 修法：用 date + time_range 判斷「是不是同一個時段」，內容沒變的保留原本 slot_id
+  // 不重新產生，只有真的新增/刪除的才動；要刪除的時段如果已經有訂單在用，直接擋下來
+  // （比照 DELETE /campaigns/:id 既有的保護邏輯，不分訂單狀態，取消的訂單也算）。
+  let slotPlan = null;
+  if (Array.isArray(body.pickup_slots)) {
+    const allSlots = await getRowsWithNumbers(accessToken, spreadsheetId, "PickupSlots");
+    const remainingOld = allSlots.filter((s) => s.campaign_id === campaignId);
+    const slotsToCreate = [];
+    for (const s of body.pickup_slots) {
+      const date = (s && s.date) || "";
+      const timeRange = (s && s.time_range) || "";
+      const matchIndex = remainingOld.findIndex((o) => o.date === date && o.time_range === timeRange);
+      if (matchIndex !== -1) {
+        remainingOld.splice(matchIndex, 1);
+      } else {
+        slotsToCreate.push({ date, time_range: timeRange });
+      }
+    }
+
+    // remainingOld 剩下的是這次儲存後不再出現、真的要刪掉的舊時段。
+    const orders = await getSheetRows(accessToken, spreadsheetId, "Orders");
+    const blockedSlots = remainingOld.filter((s) => orders.some((o) => o.pickup_slot_id === s.slot_id));
+    if (blockedSlots.length) {
+      return json(
+        {
+          ok: false,
+          error: `以下取貨時段已經有訂單使用，無法刪除：${blockedSlots
+            .map((s) => `${s.date} ${s.time_range}`)
+            .join("、")}，請保留這些時段，或改用其他日期/時段設定`,
+        },
+        { status: 400 }
+      );
+    }
+
+    slotPlan = { toDelete: remainingOld, toCreate: slotsToCreate, maxSeq: maxSlotSeq(allSlots) };
+  }
+
   const updated = { ...current };
   if (body.name !== undefined) updated.name = body.name;
   if (body.status !== undefined) updated.status = body.status;
@@ -917,32 +962,34 @@ async function handleUpdateCampaign(request, env, campaignId) {
   );
 
   let pickupSlotsResult;
-  if (Array.isArray(body.pickup_slots)) {
-    const allSlots = await getRowsWithNumbers(accessToken, spreadsheetId, "PickupSlots");
-    const thisCampaignSlots = allSlots.filter((s) => s.campaign_id === campaignId);
-    if (thisCampaignSlots.length) {
-      await deleteRows(accessToken, spreadsheetId, "PickupSlots", thisCampaignSlots.map((s) => s.__rowNumber));
+  if (slotPlan) {
+    if (slotPlan.toDelete.length) {
+      await deleteRows(accessToken, spreadsheetId, "PickupSlots", slotPlan.toDelete.map((s) => s.__rowNumber));
     }
 
-    let seq = maxSlotSeq(allSlots);
-    const newSlots = body.pickup_slots.map((s) => {
+    let seq = slotPlan.maxSeq;
+    const createdSlots = slotPlan.toCreate.map((s) => {
       seq += 1;
       return {
         slot_id: `S${String(seq).padStart(3, "0")}`,
         campaign_id: campaignId,
-        date: (s && s.date) || "",
-        time_range: (s && s.time_range) || "",
+        date: s.date,
+        time_range: s.time_range,
       };
     });
-    if (newSlots.length) {
+    if (createdSlots.length) {
       await appendRows(
         accessToken,
         spreadsheetId,
         "PickupSlots",
-        newSlots.map((s) => [s.slot_id, s.campaign_id, s.date, s.time_range])
+        createdSlots.map((s) => [s.slot_id, s.campaign_id, s.date, s.time_range])
       );
     }
-    pickupSlotsResult = newSlots.map(({ slot_id, date, time_range }) => ({ slot_id, date, time_range }));
+
+    const finalSlots = await getSheetRows(accessToken, spreadsheetId, "PickupSlots");
+    pickupSlotsResult = finalSlots
+      .filter((s) => s.campaign_id === campaignId)
+      .map((s) => ({ slot_id: s.slot_id, date: s.date, time_range: s.time_range }));
   } else {
     const allSlots = await getSheetRows(accessToken, spreadsheetId, "PickupSlots");
     pickupSlotsResult = allSlots
