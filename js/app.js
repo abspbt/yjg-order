@@ -575,10 +575,6 @@ function confirmTogglePreorder(currentOpen, onDone) {
 }
 
 // ================== 📦 訂單列表 ==================
-const ORDER_STATUS_LABEL = {
-  new: '新訂單', prepping_done: '未取貨', picked_up: '已取貨', cancelled: '已取消'
-};
-
 function orderBadge(o) {
   if (o.order_status === 'cancelled') return `<span class="badge badge-cancelled">已取消</span>`;
   if (o.order_status === 'picked_up') return `<span class="badge badge-done">已取貨</span>`;
