@@ -92,6 +92,17 @@
   PR #76）：Worker 最外層的 `catch` 原本直接把 `err.message`（夾帶 Google API 的完整
   原始回應內容）回給呼叫端，而顧客網站跟老闆後台又都會把這個字串直接顯示在畫面上，
   改成對外一律回固定文字、詳細錯誤只寫進 Cloudflare 即時記錄，詳見下方「近期優化備註」
+- ✅ 程式健檢：清掉沒有用到的程式碼（老闆要求針對兩個 repo 檢查，PR #77，兩個 repo 各一支）：
+  - `yjg-order`：拿掉 `js/app.js` 沒人讀的 `ORDER_STATUS_LABEL`、`css/style.css` 沒用到的
+    `.photo-upload`（Phase 1 假資料版的照片上傳框）／`.btn-sm`／`.topbar.with-border`、
+    `site/css/style.css` 沒用到的 `--color-success`／`--color-success-bg`；純前端刪除，
+    不用重新部署 Worker
+  - `yjg-bakery`：刪除沒有任何頁面引用的 `assets/img/logo.webp`（158 KB）
+  - 檢查方式：逐一比對函式／CSS class／HTML id／圖片有沒有被引用，加上 ESLint
+    `no-unused-vars` 掃過全部 JS；`worker/dashboard-single-file.js` 也確認跟 `worker/src/`
+    內容一致，沒有漏同步
+  - 刻意保留：`GET /api/test-sheets`（排錯用，PR #76 後已不回傳任何資料內容，拿掉還得重新
+    部署 Worker，效益不大）、`HANDOFF_*.md` 交接文件（歷史紀錄，部分內容已過時但不影響運作）
 
 **Phase 3-1 備註**：
 - 已建立 Google Cloud Service Account，金鑰以「秘密」類型設定在 Cloudflare Dashboard 的 Worker 環境變數（`SPREADSHEET_ID`、`GOOGLE_SERVICE_ACCOUNT_KEY`），沒有寫進程式碼或 repo
