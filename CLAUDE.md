@@ -2,107 +2,73 @@
 
 ## 目前進度
 
-- ✅ Phase 0：老闆 PWA 資訊架構 + Wireframe（已完成，8 頁全部定案）
-- ✅ Phase 1：假資料版 PWA（已完成，已併入 main，PR #2）
-- ✅ Phase 2：Google Sheets 資料表設計（已完成，表已建到 Google 雲端空間）
-- ✅ Phase 3-1：Worker 專案初始化 + Google Sheets API 授權設定（已完成，見下方備註）
-- ✅ Phase 3-2：讀取 API（已完成，見下方備註）
-- ✅ Phase 3-3：寫入 API（已完成，見下方備註）
-- ✅ Phase 3-4：老闆端寫入 API（已完成，見下方備註）
-- ✅ Phase 3-5：PIN 登入 + 短期 Token 驗證機制（已完成，見下方備註，**Phase 3 全部完成**）
-- ✅ Phase 4：顧客預購網站前端（已完成，見下方備註）
-- ✅ Phase 5：預購總量上限控制邏輯（已完成，見下方備註）
-- ✅ 顧客介面改版（前端 + 後端都已完成，見下方備註）：品牌識別區、購物車列固定在上方、
-  分類頁籤、大/小規格商品卡、自取／宅配步驟等，已併入 main（PR #13）
-- ✅ Phase 6：老闆後台 PWA 串接真實 Worker API（已完成，見下方備註）——商品管理頁已支援
-  設定大小規格（`variant_group`/`variant_label`），訂單列表/詳情頁已顯示取貨方式/運費/
-  宅配地址，PIN 登入、四段訂單狀態、確認付款、永久刪除訂單都可正常使用，已併入 main（PR #14）
-- ✅ Phase 6 併入後陸續完成一連串顧客網站／PWA 小修正與體驗優化（見下方「近期優化備註」），
-  每項都各自開 PR 併入 main（PR #15～#33），包含：LINE 好友連結、購物車列/品牌識別區固定
-  顯示的多輪 bug 修正、後台訂單即時更新（不快取）、新增檔期一鍵沿用上一檔商品清單、完成頁
-  排版與訂購明細多次調整、公告文字置中、步驟頁捲動被固定區塊蓋住的 bug（兩輪修正）、完成頁
-  付款方式提示、大小規格商品品項名稱放大置中、電話號碼格式驗證、訂單摘要頁與完成頁補上
-  訂購人資料供核對、「上一步」改做成按鈕固定在購物車列
-- ✅ 又陸續完成四個小修正（PR #35～#38，見下方「近期優化備註」）：顧客網站購物車摘要列跟
-  步驟標題間距太近、跳步驟自動捲動沒把新間距算進去、訂單電話號碼開頭 0 被 Google Sheets
-  吃掉、老闆後台 PWA 在電腦瀏覽器上被拉成全螢幕寬度
-- ✅ 顧客網站宅配加上「僅限台灣本島」提示（見下方「近期優化備註」，PR #40）：選取貨方式
-  按鈕文字、地址欄位下方提示、填地址時偵測離島關鍵字跳警示彈窗（可選「取消」或「開啟
-  LINE 聯絡老闆」）
-- ✅ 修正顧客網站最上方固定區塊捲動時會滑動的問題（見下方「近期優化備註」，PR #42 + #43）：
-  真正的根因是 `#app` 的 `padding-top` 讓 sticky 元素的「自然位置」比「卡住的位置」低
-  16px，捲動時一定會先跑完這 16px 才鎖住（PR #43 才修對；PR #42 當時誤判成 JS 的問題）
-- ✅ 接著修好「選商品」步驟標題被分類頁籤蓋住的問題（見下方「近期優化備註」，PR #44）：
-  `.step` 的 `scroll-margin-top` 漏算分類頁籤高度，新增 `--tabs-h` 變數補上
-- ✅ 又修好「購物車是空的」時同一個標題被分類頁籤蓋住的另一種情況（見下方「近期優化
-  備註」，PR #45）：`.tabs` 的負 `margin-top` 沒考慮到購物車列隱藏時沒有 `margin-bottom`
-  可抵銷
-- ✅ 預購檔期結束後，老闆後台的預購狀態會自動關閉，不用再手動撥開關（見下方「近期優化
-  備註」，PR #48）：判斷方式改成「手動開關是開的 **而且** 至少有一個檔期還在預購中」，
-  同時有多個檔期時只要一檔還沒結束就維持開放
-- ✅ 顧客網站完成頁「複製文字明細」按鈕補上備註內容（見下方「近期優化備註」，PR #51）：
-  之前複製出來的文字沒有帶備註，顧客貼給老闆的訊息裡看不到備註
-- ✅ 檔期預購起訖日改成完全自動判斷、拿掉手動的「即將開始」狀態（見下方「近期優化備註」，
-  PR #53）：老闆確認改用官方 LINE 通知顧客新檔期，設定好起訖日就會自動開放/關閉，不用
-  再手動切換檔期狀態；顧客網站「目前沒有開放中的預購檔期」的文字也改成引導加官方 LINE
-- ✅ Worker API 安全性修正（見下方「近期優化備註」，PR #57）：老闆主動要求跑一次
-  `/security-review`，抓出並修好兩個漏洞——`POST /orders` 的 Formula Injection（顧客姓名/
-  備註/宅配地址寫入 Google Sheets 前先跳脫公式觸發字元）、`POST /auth/login` 的 PIN 防暴力
-  破解節流（連續猜錯 5 次鎖定 15 分鐘）
-- ✅ 拿掉店家匯款資訊（見下方「近期優化備註」，PR #60）：資安/防詐考量，顧客網站完成頁
-  拿掉「請匯款至」帳戶卡片、老闆後台店家資料頁拿掉匯款資訊三個欄位，Worker 公開的
-  `GET /settings` 也把 `bank_name`/`bank_account`/`bank_owner` 排除在回傳之外，就算
-  Sheets 裡還留著舊資料也不會外洩
-- ✅ 完成頁文案調整，引導客人透過 LINE 跟老闆確認訂單及付款方式（見下方「近期優化備註」，
-  PR #61）：付款這個步驟改成統一由老闆透過 LINE 跟顧客確認處理（帳戶資訊不公開顯示在
-  網站上，改由老闆私下透過 LINE 提供），付款方式清單重新加回「匯款」選項
-- ✅ 新增檔期低庫存提示，解決顧客測試回報「訂購超過上限要填到結帳才會知道」的問題
-  （見下方「近期優化備註」，PR #62 + #63）：`GET /campaigns` 即時算出真實剩餘量，顧客
-  網站數量選擇器直接卡在這個上限；剩餘量偏低時購物車列下方會顯示「目前庫存緊張，實際
-  可以購買數量，以訂單明細為主」的免責提示，真正的把關仍在 `POST /orders`。**PR #62
-  原本的做法是剩餘量偏低時刻意打折顯示（緩衝）+ 跳一次性彈窗，後來考量消費者保護法規
-  疑慮，PR #63 改成如實顯示真實剩餘量、拿掉彈窗，只保留購物車列下方的常駐免責提示**
-- ✅ Phase 7：部署 + 網域設定（已完成）——業主買好 Cloudflare 網域 `yjg-bakery.com`，三個網站
-  分別建立獨立的 Cloudflare Pages/Workers 專案（Git 連結 `main` 分支自動部署，靜態資源用
-  `wrangler.toml` 的 `[assets]` 設定），掛上正式子網域：
-  - `yjg-bakery.com`（含 `www.` 自動轉址）→ 首頁，`abspbt/yjg-bakery` repo 根目錄
-  - `order.yjg-bakery.com` → 顧客訂購網站，`abspbt/yjg-order` repo 的 `site/` 資料夾
-  - `bakerhsu.yjg-bakery.com` → 老闆後台 PWA，`abspbt/yjg-order` repo 根目錄（原本暫時掛在
-    GitHub Pages 的 `https://abspbt.github.io/yjg-order/` 已停用，改用這個正式網址）
-  三個網址都已用手機（行動網路）實測：完整下單流程正常、訂單有寫進 Google Sheets、
-  老闆後台 PIN 登入與訂單列表正常、PWA 重新加到主畫面正常。
-  - Cloudflare 目前已經把 Pages 併入 Workers，「連結到 Git」的部署介面改用 `wrangler.toml`
-    的 `[assets]` 設定描述靜態資源目錄，不是舊版 Pages 的「建置輸出目錄」欄位；
-    `yjg-order` repo 新增了 `wrangler.toml`（根目錄，PWA 用）跟 `site/wrangler.toml`
-    （顧客網站用），跟 `worker/wrangler.toml`（真正的 API Worker，用網頁編輯器貼
-    `dashboard-single-file.js` 部署）完全獨立、互不影響；`yjg-bakery` repo 也比照新增了
-    根目錄 `wrangler.toml`
-  - `yjg-bakery` repo 各頁面的 `canonical`、`sitemap.xml`、`robots.txt` 已經把絕對網址從
-    暫用的 GitHub Pages 網址換成正式網域 `https://yjg-bakery.com/`；之後需要另外去 Google
-    Search Console 用新網域重新驗證、重新提交 sitemap（不急，網站穩定後再處理即可）
-  - `www.yjg-bakery.com` 用 Cloudflare 的「重新導向規則」範本（從 WWW 重新導向轉接到根）
-    設定 301 轉址到 `yjg-bakery.com`，因為 www 子網域原本沒有 DNS 記錄，套用範本時額外
-    建立了一筆 A 記錄指到保留位址 `192.0.2.1`（僅用來讓流量經過 Cloudflare Proxy 觸發
-    轉址規則，實際上不會真的連到這個 IP）
-  - 三個 Worker 的 `*.workers.dev` 測試網址目前都顯示「已停用」，這是 Cloudflare 現在的
-    預設行為（避免測試用網址被公開索引/存取），不影響正式的自訂網域，不用特別處理
-  - `bagel-order`/`cake-order` 頁目前只有 LINE 好友連結，還沒有連到 `order.yjg-bakery.com`
-    這個正式訂購網址，要不要加上、怎麼加，之後可以另外討論
-- ✅ 第二輪 Worker API 安全性修正（老闆看到別的專案被指出同樣問題，主動拿來對照檢查，
-  PR #76）：Worker 最外層的 `catch` 原本直接把 `err.message`（夾帶 Google API 的完整
-  原始回應內容）回給呼叫端，而顧客網站跟老闆後台又都會把這個字串直接顯示在畫面上，
-  改成對外一律回固定文字、詳細錯誤只寫進 Cloudflare 即時記錄，詳見下方「近期優化備註」
-- ✅ 程式健檢：清掉沒有用到的程式碼（老闆要求針對兩個 repo 檢查，PR #77，兩個 repo 各一支）：
-  - `yjg-order`：拿掉 `js/app.js` 沒人讀的 `ORDER_STATUS_LABEL`、`css/style.css` 沒用到的
-    `.photo-upload`（Phase 1 假資料版的照片上傳框）／`.btn-sm`／`.topbar.with-border`、
-    `site/css/style.css` 沒用到的 `--color-success`／`--color-success-bg`；純前端刪除，
-    不用重新部署 Worker
-  - `yjg-bakery`：刪除沒有任何頁面引用的 `assets/img/logo.webp`（158 KB）
-  - 檢查方式：逐一比對函式／CSS class／HTML id／圖片有沒有被引用，加上 ESLint
-    `no-unused-vars` 掃過全部 JS；`worker/dashboard-single-file.js` 也確認跟 `worker/src/`
-    內容一致，沒有漏同步
-  - 刻意保留：`GET /api/test-sheets`（排錯用，PR #76 後已不回傳任何資料內容，拿掉還得重新
-    部署 Worker，效益不大）、`HANDOFF_*.md` 交接文件（歷史紀錄，部分內容已過時但不影響運作）
+- ✅ Phase 0～7 全部完成，系統已正式上線（三個網址見下方「Phase 7 備註」）：
+  - Phase 0：老闆 PWA 資訊架構 + Wireframe（8 頁全部定案）
+  - Phase 1：假資料版 PWA（PR #2）
+  - Phase 2：Google Sheets 資料表設計
+  - Phase 3-1～3-5：Cloudflare Worker API（授權設定、讀取、顧客下單、老闆端寫入、PIN 登入）
+  - Phase 4：顧客預購網站前端
+  - Phase 5：預購總量上限控制（PR #12，連同 Phase 4 一起併入）
+  - 顧客介面改版：品牌識別區、購物車列固定在上方、分類頁籤、大/小規格商品卡、自取／宅配步驟（PR #13）
+  - Phase 6：老闆後台 PWA 串接真實 Worker API（PR #14）
+  - Phase 7：部署 + 網域設定
+- ✅ 上線前後陸續完成的小修正、體驗優化、安全性修正（PR #15～#77，另有兩項直接合併進
+  main），逐項記在下方「近期優化備註」
+- ⬜ Phase 8：上線前測試清單（見文件最下方）還沒逐項勾選
+- 🔄 **構想中：商品資料改用 Cloudflare D1 + 重建更簡單的老闆後台**（2026-10-07 討論過
+  可行性，結論見下方「D1 遷移可行性討論」；商品結構還在構想，**還沒開始動手**）
+
+## D1 遷移可行性討論（2026-10-07，構想階段，尚未動手）
+
+**起因**：中秋節禮盒檔期上架耗費很多心力。系統當初照貝果的商品設計，之後每遇到結構不同
+的商品，就要連 Google Sheets 一起大改：
+1. 原本以為貝果照單件賣，實際是袋裝、分大小顆；四十個商品卡片排不下，改成子母卡片
+   （`variant_group`/`variant_label`），試算表大改一次
+2. 中秋禮盒還分內容物，陸續補上 `unit`、`quantity_cap`，幾乎等於重新建置；過程中還踩到
+   刪檔期留下孤兒商品（PR #66）、取貨時段被整批重編（直接合併進 main 那次）這類資料連動問題
+
+**目前的共識**：
+- **可行**：D1 跟現有 Worker 同平台，免費額度（每天讀 500 萬列、寫 10 萬列、容量 5GB）
+  對這個規模綽綽有餘；建資料庫、綁定 Worker、貼 SQL 建表都能在 Cloudflare Dashboard
+  網頁上完成，延續「不用終端機」的部署方式；讀取也會比現在繞去 Google 快
+- 當初選 Google Sheets 只是因為不知道有 Cloudflare 可以用；老闆幾乎不開試算表，只有
+  訂單出問題時才看，所以不需要遷就試算表
+- **D1 當唯一正本**（商品、檔期、取貨時段、訂單、設定全部搬），**Google Sheets 改成只新增、
+  不覆寫的備份流水帳**：新訂單、確認付款、取消訂單、改商品等每個動作各新增一列
+  （時間／動作／對象／內容），出問題時可以逐筆追查是什麼時候被改成什麼
+  - 先寫 D1、成功就回應顧客，試算表在背景補寫（Worker 的 `waitUntil`）；寫試算表失敗
+    不能擋住下單，在 D1 標記「還沒備份」，再用 Cron Trigger 定時補寫
+  - D1 內建 Time Travel（可還原到過去 30 天內任一時間點）負責整庫還原，試算表流水帳
+    負責「人看得懂」的查帳
+  - 寫進試算表的內容仍要沿用 `sanitizeForSheets()` 防 Formula Injection（PR #57）
+- 可以重建一個更簡單的老闆後台（老闆不熟電腦），以「比現在更簡單」為最高原則
+- 換資料庫只是工具，**真正的目標是「不管商品長什麼樣，都不用改程式、不用改資料表就能上架」**
+- 主要成本在工作量：Worker 資料存取幾乎重寫，商品相關後台頁面、顧客網站選購畫面都要跟著改
+
+**商品結構方向（構想中，未定案）**：
+- **商品目錄 + 檔期上架兩層**：商品建在目錄裡一直存在，每開一檔只要勾選這次賣哪些、
+  設定限量；取代現在商品綁死在檔期（`Products.campaign_id`）、每檔整批複製
+  （「沿用上一檔商品清單」）的做法，也從根本避免孤兒商品
+  - 貝果大部分每檔重複 → 建一次，之後每檔勾選
+  - 禮盒是季節性 → 平常設成隱藏，明年同季叫出來改一改就能上架
+- **商品 → 選項（真正的子母結構）**：每個選項各自有價格、單位、總量上限、每人限購；
+  貝果的大顆/小顆、禮盒的內容物 A/B 都是同一個模式，取代現在用 `variant_group` 文字
+  比對湊出來的子母卡片
+- 提過但未確認的點子：「商品範本」（新增時先選貝果或禮盒，常用欄位自動帶預設值）
+- 順便可以解決已知限制：顧客網站只認第一個檔期、不能同時開兩個檔期（見 PR #69 備註）
+- **禮盒形式不可預知**：通用結構能吸收「幾種固定款式各自價格/限量」「單位不同」「內容物
+  說明、照片」「只能宅配或只能自取」；吸收不了、要另外開發的是「顧客自己組合（例如自選
+  口味裝一盒）」「加購」這類新的購買方式——碰到時在 D1 新增資料表處理，不影響既有商品
+
+**待確認／下一步**：
+- 業主整理一份「賣過和未來可能賣的商品清單」（怎麼賣、有哪些選擇、有沒有限量、取貨方式
+  有沒有不同），用來檢查通用結構能不能全部涵蓋
+- 舊訂單要不要搬進 D1，還是 D1 從下一檔重新開始、舊訂單留在現有試算表當歷史紀錄（未決定）
+- 新後台在現有 PWA 上改，還是另做一個全新的（未決定）
+- 切換時機：在下一個檔期開跑前完成，不要在有檔期進行中時切換
+- 方向確定後先寫正式規劃文件，比照 Phase 3 拆成幾個小階段，各自一個對話、一支 PR
+
+## 各階段備註
 
 **Phase 3-1 備註**：
 - 已建立 Google Cloud Service Account，金鑰以「秘密」類型設定在 Cloudflare Dashboard 的 Worker 環境變數（`SPREADSHEET_ID`、`GOOGLE_SERVICE_ACCOUNT_KEY`），沒有寫進程式碼或 repo
@@ -117,7 +83,6 @@
 - `worker/src/sheets.js` 新增 `getSheetRows()`，把整張表轉成「第一列是欄位名稱」的物件陣列，之後的 API 都靠這個讀資料
 - 加了 CORS header，因為之後 Phase 4/6 前端會從別的網域打這個 Worker
 - `worker/dashboard-single-file.js` 已同步更新，API 細節與範例回應格式見 `worker/README.md`
-- 開發這次時發現 Phase 3-1 分支當時還沒併入 main，已在 `claude/phase-3-2-api-read-0rkozk` 分支裡先合併進來——**併 PR 時要注意，如果 Phase 3-1 有獨立的 PR 還沒關掉，這邊會重複收錄**
 
 **Phase 3-3 備註**：
 - 新增 `POST /orders`：顧客下單，同時寫入 `Orders` + `Order_Items` 兩張表
@@ -129,8 +94,7 @@
 
 **Phase 3-4 備註**：
 - 新增四支老闆端寫入 API：`POST /products`（新增商品，自動產生 `P001`、`P002`... 編號）、`PATCH /products/:id`（編輯商品，只更新有帶到的欄位）、`PATCH /orders/:id`（確認付款狀態、更新訂單 4 段狀態、改備註）、`PATCH /settings`（改公告/開關預購/店家資料，key-value upsert）
-- **⚠️ 這四支目前完全沒有登入驗證，誰都能打**，程式碼跟 README 都有標註，Phase 3-5 要記得補上
-- `Settings` 分頁實際欄位是 `setting_key`/`setting_value`（不是原本猜的 `key`/`value`，已經跟老闆核對過 Sheets 實際內容修正），已有的 key 清單（`shop_name`、`shop_intro`、`shop_line`、`shop_phone`、`shop_address`、`bank_name`、`bank_account`、`bank_owner`、`announcement_text`、`announcement_visible`、`preorder_open`、`pause_message`）列在 `worker/README.md`
+- `Settings` 分頁實際欄位是 `setting_key`/`setting_value`（不是原本猜的 `key`/`value`，已經跟老闆核對過 Sheets 實際內容修正），已有的 key 清單（`shop_name`、`shop_intro`、`shop_line`、`shop_phone`、`shop_address`、`bank_name`、`bank_account`、`bank_owner`（匯款資訊三個 key 已在 PR #60 停用）、`announcement_text`、`announcement_visible`、`preorder_open`、`pause_message`）列在 `worker/README.md`
 - `worker/src/sheets.js` 新增 `findRowByKey()`（依欄位值找到某一列）、`updateRow()`（覆寫指定列）兩個輔助函式
 - API 細節、請求/回應範例、curl/Postman 測試方法見 `worker/README.md`
 
@@ -150,7 +114,6 @@
 - 開發過程中發現 Worker 少一支公開的 `GET /settings`（顧客網站要讀公告、匯款資訊、預購開關才需要），已補上這支（`worker/src/index.js`、`worker/dashboard-single-file.js`、`worker/README.md` 同步更新），已部署並實測正常
 - 順手修了一個小 bug：Worker 的 JSON 回應沒有明確標註 `charset=utf-8`，導致直接用瀏覽器打開 API 網址時 Safari 會把中文顯示成亂碼（用程式串接不受影響），已修正
 - 已在本機用瀏覽器打開 `site/index.html` 實際測試過完整下單流程，操作順暢
-- 目前還沒部署到 Cloudflare Pages，正式上線的網域設定留給 Phase 7；畫面/文字之後想再調整，隨時都可以，不用等整個專案做完
 
 **Phase 5 備註**：
 - `POST /orders` 新增檔期總量檢查：把該檔期所有「未取消」訂單的 `Order_Items` 數量加總，加上這筆新訂單要訂的數量，超過 `Campaigns.total_quantity_cap` 就擋下，回傳 HTTP 400（例如「本檔期預購已達上限，剩餘 3 份，訂單需求 5 份，請減少數量後再試」；剩餘 0 份時顯示「本檔期預購已額滿，請等待下一檔期」）
@@ -159,7 +122,6 @@
 - 沿用 Phase 3-3 訂單編號流水號一樣的取捨：「讀了再寫」的簡單檢查，不做原子鎖，極端情況下可能多接一兩份，老闆手動調整即可
 - 前端 `site/js/app.js` 不用改，本來就會把 API 回傳的 `error` 訊息直接顯示在送出按鈕下方
 - `worker/src/index.js`、`worker/dashboard-single-file.js`、`worker/README.md` 都已同步更新，已透過 Cloudflare Dashboard 網頁編輯器部署並併入 `main`（PR #12，同時併入了原本卡著沒併的 Phase 4）
-- 開發時發現 Phase 4 的分支 `claude/new-session-r689do` 當時還沒併入 `main`，這次 Phase 5 分支是接在 Phase 4 分支上做的，PR #12 一次把 Phase 4 + Phase 5 都併進 `main` 了
 
 **顧客介面改版備註**（已併入 main，PR #13）：
 - 前端（4 個 commit）：品牌識別區、購物車列改固定在上方（可展開/收合）、分類頁籤、
@@ -190,11 +152,37 @@
 - 訂單列表/詳情頁已顯示取貨方式（自取/宅配）、宅配收件地址、自取取貨時段、宅配運費，
   列表也可以用取貨方式篩選
 - PIN 登入、四段訂單狀態（新訂單/已備料/已取貨/已取消）、確認付款、訂單永久刪除都已可用
-- 已透過 GitHub Pages 暫時掛上線（`https://abspbt.github.io/yjg-order/`）方便手機測試，
-  這不是正式部署路線，Phase 7 要決定要不要搬到 Cloudflare Pages
 
-**近期優化備註**（Phase 6 併入 main 之後陸續完成的小修正與體驗優化，各自獨立 PR #15～#44，
-不算獨立 Phase，一併記在這裡方便查）：
+**Phase 7 備註**（部署 + 網域設定）：
+- 業主買好 Cloudflare 網域 `yjg-bakery.com`，三個網站分別建立獨立的 Cloudflare
+  Pages/Workers 專案（Git 連結 `main` 分支自動部署，靜態資源用 `wrangler.toml` 的
+  `[assets]` 設定），掛上正式子網域：
+  - `yjg-bakery.com`（含 `www.` 自動轉址）→ 首頁，`abspbt/yjg-bakery` repo 根目錄
+  - `order.yjg-bakery.com` → 顧客訂購網站，`abspbt/yjg-order` repo 的 `site/` 資料夾
+  - `bakerhsu.yjg-bakery.com` → 老闆後台 PWA，`abspbt/yjg-order` repo 根目錄（原本暫時掛在
+    GitHub Pages 的 `https://abspbt.github.io/yjg-order/` 已停用，改用這個正式網址）
+- 三個網址都已用手機（行動網路）實測：完整下單流程正常、訂單有寫進 Google Sheets、
+  老闆後台 PIN 登入與訂單列表正常、PWA 重新加到主畫面正常
+- Cloudflare 目前已經把 Pages 併入 Workers，「連結到 Git」的部署介面改用 `wrangler.toml`
+  的 `[assets]` 設定描述靜態資源目錄，不是舊版 Pages 的「建置輸出目錄」欄位；
+  `yjg-order` repo 新增了 `wrangler.toml`（根目錄，PWA 用）跟 `site/wrangler.toml`
+  （顧客網站用），跟 `worker/wrangler.toml`（真正的 API Worker，用網頁編輯器貼
+  `dashboard-single-file.js` 部署）完全獨立、互不影響；`yjg-bakery` repo 也比照新增了
+  根目錄 `wrangler.toml`
+- `yjg-bakery` repo 各頁面的 `canonical`、`sitemap.xml`、`robots.txt` 已經把絕對網址從
+  暫用的 GitHub Pages 網址換成正式網域 `https://yjg-bakery.com/`；之後需要另外去 Google
+  Search Console 用新網域重新驗證、重新提交 sitemap（不急，網站穩定後再處理即可）
+- `www.yjg-bakery.com` 用 Cloudflare 的「重新導向規則」範本（從 WWW 重新導向轉接到根）
+  設定 301 轉址到 `yjg-bakery.com`，因為 www 子網域原本沒有 DNS 記錄，套用範本時額外
+  建立了一筆 A 記錄指到保留位址 `192.0.2.1`（僅用來讓流量經過 Cloudflare Proxy 觸發
+  轉址規則，實際上不會真的連到這個 IP）
+- 三個 Worker 的 `*.workers.dev` 測試網址目前都顯示「已停用」，這是 Cloudflare 現在的
+  預設行為（避免測試用網址被公開索引/存取），不影響正式的自訂網域，不用特別處理
+- `bagel-order`/`cake-order` 頁目前只有 LINE 好友連結，還沒有連到 `order.yjg-bakery.com`
+  這個正式訂購網址，要不要加上、怎麼加，之後可以另外討論
+
+**近期優化備註**（Phase 6 併入 main 之後陸續完成的小修正、體驗優化、安全性修正，各自獨立
+PR #15 起，不算獨立 Phase，一併記在這裡方便查）：
 - LINE 官方帳號加好友連結（顧客網站+後台首頁都有），修正過連結容錯處理（`＠`全形符號、
   忘記帶`@`等常見貼上問題）
 - 購物車摘要列／品牌識別區改成固定在畫面最上方（`position: sticky`），中間修了好幾輪
@@ -208,8 +196,6 @@
 - 步驟頁捲動被固定區塊蓋住的 bug，修了兩輪：先補上品牌/公告固定區的高度
   （`scroll-margin-top`），後來發現購物車摘要列也是固定的，一起補上高度才完全解決
   「上一頁」「訂單編號」被蓋住看不到的問題
-- 完成頁新增「其他付款方式」提示（LINE Pay／全支付／現金自取，除了匯款外都可以在
-  加 LINE 好友時跟老闆確認）
 - 大小規格商品（如「有餡/無餡」卡士達）的品項名稱放大、置中，加分隔線跟規格選項區隔
 - 電話號碼加上基本格式驗證（至少 8 碼數字），避免填「0」這種明顯錯誤的內容也能送出
 - 訂單摘要頁（送出前最後一頁）、完成頁的訂購明細都補上姓名/電話/備註，方便顧客送出前
@@ -228,7 +214,7 @@
   純文字解決（PR #37）。**這個修正只對之後新送出的訂單有效**，已經存在 Sheets 裡、開頭
   0 已經被吃掉的舊訂單需要手動到 Google Sheets 補回去（補的時候儲存格前面一樣要加 `'`，
   或先把那一格格式設成「純文字」，不然存檔又會被吃掉）
-- 老闆後台 PWA（repo 根目錄，目前掛在 GitHub Pages）原本只針對手機設計，`#app` 沒有限制
+- 老闆後台 PWA（repo 根目錄）原本只針對手機設計，`#app` 沒有限制
   寬度，用電腦瀏覽器打開會整個拉滿螢幕；補上 `--app-max-width`（480px）並置中，底部頁籤列、
   PIN 登入頁版本號、更新提示橫幅這幾個 `position: fixed` 元素也一起改成跟著置中，桌面瀏覽
   時會維持像手機 App 一樣的固定寬版面（PR #38）
@@ -370,36 +356,11 @@
   再公開顯示在網站上，改由老闆私下透過 LINE 提供），付款方式清單重新加回「匯款」選項，
   完成頁提示文字改成「💳 付款方式有匯款／LINE Pay／全支付／現金自取，請透過 LINE 跟
   老闆確認訂單內容及付款方式，謝謝您的預購！」
-- 新增檔期低庫存緩衝機制（老闆測試時發現，PR #62）：檔期總量上限原本只有 `POST /orders`
-  送出訂單那一刻才會擋單，顧客選完一長串商品、填完姓名電話才發現已經額滿；而且同時有
-  好幾個人在選購時，大家看到的剩餘量都是同一個數字，容易在最後幾份時一起搶、一起送出，
-  真的超賣
-  - `GET /campaigns` 新增即時計算的 `remaining_quantity`（顯示用剩餘量）、`low_stock`
-    （是否已跌破低庫存門檻）：顧客網站數量選擇器直接用 `remaining_quantity` 當上限，
-    選超過就選不下去，不用等到填完資料才被擋
-  - `Campaigns` 新增兩欄 `low_stock_threshold`（剩餘量低於多少開始套用緩衝）、
-    `low_stock_buffer`（套用緩衝時要少顯示幾份）：剩餘量跌破門檻後，`remaining_quantity`
-    會刻意比實際剩餘量再保守一些，讓同時選購的多人之間留一點緩衝，降低大家都以為自己
-    搶到最後名額、結果同時送出而真的超賣的機率；兩欄任一沒填就不套用緩衝
-  - ⚠️ 緩衝只影響**顯示**與前端數量選擇器的上限，`POST /orders` 最終把關一律用未經緩衝
-    的真實剩餘量，不會讓緩衝後的數字騙過真正的總量上限檢查
-  - 老闆不擅長用電腦，兩個緩衝欄位已經加進後台 PWA「預購檔期設定」頁面（跟「總量上限」
-    同一頁），可以直接用手機設定，不用進 Google Sheets
-  - 緩衝是**整檔期共用**一個額度，跟 `total_quantity_cap` 一樣不分商品/口味各自計算——
-    這是老闆特別確認過的設計，避免顧客誤以為某個口味單獨限量
-  - 顧客網站新增：選商品步驟標題下方的低庫存提示橫幅（整檔期共用一條，不掛在單一商品
-    卡片旁邊，避免讓顧客誤會成某個口味單獨限量）、第一次加入購物車且已進入低庫存狀態時
-    跳一次性提醒彈窗（之後不會每次點+都打斷，靠橫幅持續露出最新剩餘量）
-  - `worker/src/index.js`、`worker/dashboard-single-file.js`、`js/app.js`、
-    `site/js/app.js`、`site/index.html`、`site/css/style.css`、`worker/README.md`
-    都已同步更新
-  - ⚠️ 這項改動**要重新部署 Worker 才會生效**（Cloudflare Dashboard 貼上
-    `worker/dashboard-single-file.js`），而且**需要老闆手動在 Google Sheets 的
-    `Campaigns` 分頁最右邊加上 `low_stock_threshold`、`low_stock_buffer` 兩欄**才會
-    真正啟用緩衝（沒加之前效果等同不啟用，不影響其他功能）
-  - ⚠️ **這個緩衝打折顯示的做法，PR #63 已經拿掉、改成如實顯示，見下方 PR #63 條目**——
-    留著這段記錄是為了完整記錄設計演進過程，實際部署請照 PR #63 的版本，不要照這裡的
-    `low_stock_buffer` 欄位設定
+- 新增檔期剩餘量即時顯示（老闆測試時發現，PR #62）：檔期總量上限原本只有 `POST /orders`
+  送出那一刻才會擋，顧客填完資料才發現額滿。`GET /campaigns` 新增即時計算的
+  `remaining_quantity`、`low_stock`，顧客網站數量選擇器直接卡在剩餘量上限。PR #62 當時
+  還做了「剩餘量偏低時刻意少顯示幾份（`low_stock_buffer`）＋一次性彈窗」，**下一項 PR #63
+  已整個拿掉**，現行做法以 PR #63 為準
 - 拿掉低庫存緩衝打折顯示與彈窗，改成如實顯示剩餘量 + 購物車下方免責提示（老闆考量消費者
   保護法規疑慮主動提出，PR #63）：PR #62 剛做完的「剩餘量偏低時刻意少顯示幾份」緩衝機制，
   老闆後來想到這個做法可能讓顧客看到的數字跟實際能買到的數量不一致，有消費者保護法規上
@@ -576,7 +537,7 @@
   - `worker/src/index.js`、`worker/dashboard-single-file.js`、`worker/README.md`、
     `js/api.js`、`site/js/app.js` 都已同步更新，老闆已透過 Cloudflare Dashboard 網頁
     編輯器重新部署 Worker
-- ✅ 優化登入後台之後讀取比較久的問題（老闆回報，直接合併進 main，未走 PR）：追查發現
+- 優化登入後台之後讀取比較久的問題（老闆回報，直接合併進 main，未走 PR）：追查發現
   每支 API（`GET /settings`、`/orders`、`/admin/campaigns`、`/admin/products`…）進來都會
   各自重新用 Service Account 簽一次 JWT、重新跟 Google OAuth 換一次 access token，而後台
   首頁一次會併發打上面這 4 支 API，等於同時觸發 4 次「簽章 + 換 token」的網路往返；另外
@@ -598,7 +559,7 @@
   - `worker/src/googleAuth.js`、`worker/src/sheets.js`、`worker/dashboard-single-file.js`、
     `worker/README.md` 都已同步更新，老闆已透過 Cloudflare Dashboard 網頁編輯器重新部署
   - 純粹是後端內部效能優化，不影響任何 API 的請求/回應格式，也不用改 Google Sheets
-- ✅ 修正 `PATCH /campaigns/:id` 儲存檔期時把取貨時段整批作廢的資料遺失 bug（老闆回報後台
+- 修正 `PATCH /campaigns/:id` 儲存檔期時把取貨時段整批作廢的資料遺失 bug（老闆回報後台
   看不到取貨時間，直接合併進 main，未走 PR）：
   - 追查根因：老闆後台「編輯檔期」頁面**每次儲存都會把目前的 `pickup_slots` 整包送出**，
     就算只是改檔期名稱、總量上限這種跟時段完全無關的欄位也一樣；而 Worker 原本不管內容
@@ -620,25 +581,31 @@
   - ⚠️ 這項改動**要重新部署 Worker 才會生效**，已透過 Cloudflare Dashboard 網頁編輯器
     重新部署；已經被這個 bug 弄丟 slot_id 對照關係的舊訂單，只能靠 Google 試算表版本
     記錄手動救回來，修好的程式碼只能防止**之後**再發生，救不回已經遺失的舊資料
-
-Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
-（今日 Dashboard、商品管理、訂單列表+付款確認、公告設定、
-預購檔期設定、店家資料、預購開關、PIN 登入畫面）。
+- 程式健檢：清掉沒有用到的程式碼（老闆要求針對兩個 repo 檢查，PR #77，兩個 repo 各一支）：
+  - `yjg-order`：拿掉 `js/app.js` 沒人讀的 `ORDER_STATUS_LABEL`、`css/style.css` 沒用到的
+    `.photo-upload`（Phase 1 假資料版的照片上傳框）／`.btn-sm`／`.topbar.with-border`、
+    `site/css/style.css` 沒用到的 `--color-success`／`--color-success-bg`；純前端刪除，
+    不用重新部署 Worker
+  - `yjg-bakery`：刪除沒有任何頁面引用的 `assets/img/logo.webp`（158 KB）
+  - 檢查方式：逐一比對函式／CSS class／HTML id／圖片有沒有被引用，加上 ESLint
+    `no-unused-vars` 掃過全部 JS；`worker/dashboard-single-file.js` 也確認跟 `worker/src/`
+    內容一致，沒有漏同步
+  - 刻意保留：`GET /api/test-sheets`（排錯用，PR #76 後已不回傳任何資料內容，拿掉還得重新
+    部署 Worker，效益不大）、`HANDOFF_*.md` 交接文件（歷史紀錄，部分內容已過時但不影響運作）
 
 > 📝 **關於下方 Phase 規劃的說明**：以下 Phase 0～8 是專案一開始訂的大綱方向，
 > 但實際動手做、老闆真機試用之後，常常會冒出規劃時沒想到的細節，需要跟著調整
 > （例如 Phase 1 把訂單狀態從原本規劃的 3 段拆成 4 段、備料總覽的計算邏輯重新設計等）。
 > 這是正常且預期中的過程，之後的 Phase 也會持續發生類似的情況——遇到跟大綱不一致的
 > 地方，以「實際做出來、測試過的版本」為準，大綱本身不會回頭照實作反推硬改，
-> 但重大調整會盡量在對應 Phase 或交接摘要裡註記一筆，方便之後回頭查。
+> 但重大調整會盡量在上方對應的備註裡註記一筆，方便之後回頭查。
 
 ## 使用方式（重要，請先讀）
 
-1. **每個 Phase 盡量在「一個新對話」裡完成**，不要接著前一個 Phase 的舊對話繼續做，對話越長越容易吃光用量。
-2. 每個 Phase 結尾都有一段「▶ 交接摘要」，**開新對話時，把上一個 Phase 的交接摘要貼上去當開場白**，不用貼整份歷史紀錄。
-3. 如果你是付費方案，建議把這份文件整份存進 Claude 的 **Project 知識庫**，之後每個新對話都能自動讀到背景，交接摘要可以省略更多細節。
-4. 每完成一個 Phase，回來這份文件把對應的 checkbox 打勾、把交接摘要裡的內容填實際結果，這份文件就是你的「專案聖經」，隨時可查目前進度到哪。
-5. 如果某個 Phase 感覺內容太多、做到一半就快用完額度，**就地再拆成 Phase X-1 / X-2**，不用勉強一次做完。
+1. **每個任務盡量在「一個新對話」裡完成**，不要接著舊對話繼續做，對話越長越容易吃光用量。
+2. 這份文件就是「專案聖經」，Claude Code 開新對話時會自動讀到，不用另外貼交接摘要。
+   每完成一段工作，回來更新「目前進度」和對應的備註。
+3. 如果某個任務感覺內容太多、做到一半就快用完額度，**就地再拆成 X-1 / X-2**，不用勉強一次做完。
 
 ---
 
@@ -646,12 +613,11 @@ Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 
 - **前台網站**：Cloudflare Pages
 - **API / 後端邏輯**：Cloudflare Worker（或 Pages Functions）
-- **資料庫**：Google Sheets（唯一資料來源，不用 D1、不用 Durable Objects）
+- **資料庫**：Google Sheets（目前唯一資料來源；**正在評估改用 Cloudflare D1**，見上方「D1 遷移可行性討論」）
 - **通知/客服**：LINE OA（人工核對付款截圖，非自動串接金流）
 - **老闆後台**：手機 PWA，PIN 登入 + 短期 Token
 
 不需要的東西（已排除，不用重新討論）：
-- Cloudflare D1
 - Cloudflare Durable Objects
 - 金流 API 串接
 - 會員系統 / 帳密登入
@@ -661,7 +627,7 @@ Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 
 ## 工作流程規則
 
-這個專案分成 Phase 0～8 進行（完整計畫見 docs/project-plan.md）。
+這個專案分成 Phase 0～8 進行（原始大綱見下方各 Phase 段落）。
 
 - 每次完成一個 Phase 的產出、或段落任務告一段落時，
   **主動提醒我**：「這個階段完成了，要不要更新 CLAUDE.md 的『目前進度』？」
@@ -674,10 +640,6 @@ Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 ## Phase 0：老闆 PWA 資訊架構 + Wireframe
 
 **目標**：把老闆後台每一頁長什麼樣、有哪些按鈕、怎麼操作，逐頁定案。不寫任何程式碼。
-
-**開始前準備**：
-- 這份文件全文（或前面幾輪對話整理出的架構摘要）
-- 圖二那張「你的後台」流程圖
 
 **這階段要做的頁面**（一次一頁，覺得吃力可以拆多個對話）：
 - [x] 🏠 今日 Dashboard
@@ -693,39 +655,19 @@ Phase 0 各頁 Wireframe 定案內容已整理成交接摘要，見對話紀錄
 
 **驗收標準**：老闆看著這份文字 Wireframe，能想像出「點開手機、看到什麼、要按哪裡」，沒有模糊地帶。
 
-**▶ 交接摘要範本**（做完這階段，複製以下段落，填空後貼到下一個新對話開頭）：
-```
-我在做「歪嘴雞烘焙預購系統」，技術棧：Cloudflare Pages + Worker + Google Sheets。
-已完成 Phase 0（PWA 資訊架構與 Wireframe），以下是各頁面定案內容：
-[貼上 Phase 0 產出的 Wireframe 文字]
-
-現在要做 Phase 1：用假資料做出這幾頁的 PWA 前端（純前端，不接後端）。
-```
-
 ---
 
 ## Phase 1：假資料版 PWA（純前端，不接後端）
 
 **目標**：把 Phase 0 定案的頁面做成可以在手機上滑動操作的 PWA，資料先寫死（假資料），主要是驗證「操作順不順手」。
 
-**開始前準備**：Phase 0 的交接摘要（貼 Wireframe 內容）
-
 **產出**：
-- [ ] 可加到 iPhone 主畫面的 PWA（manifest.json + service worker 基本設定）
-- [ ] 4 個 Tab 導覽可切換
-- [ ] 各頁面用假資料呈現（例如今日訂單 18 筆、假商品卡片等）
-- [ ] 基本互動（點商品進編輯頁、切換上下架開關等）能跑，但不用真的存檔
+- [x] 可加到 iPhone 主畫面的 PWA（manifest.json + service worker 基本設定）
+- [x] 4 個 Tab 導覽可切換
+- [x] 各頁面用假資料呈現（例如今日訂單 18 筆、假商品卡片等）
+- [x] 基本互動（點商品進編輯頁、切換上下架開關等）能跑，但不用真的存檔
 
 **驗收標準**：老闆拿實體 iPhone 加到主畫面試用一輪，覺得「操作邏輯沒問題」再進下一步。這是整個專案最重要的把關點，寧可這階段多花時間調整，也不要帶著不順手的設計往後做。
-
-**▶ 交接摘要範本**：
-```
-延續「歪嘴雞烘焙預購系統」，已完成 Phase 1：假資料版 PWA，
-老闆試用後的回饋是：[貼上老闆的意見/要調整的地方]
-PWA 程式碼位置：[貼 GitHub repo 連結]
-
-現在要做 Phase 2：設計 Google Sheets 資料表結構。
-```
 
 ---
 
@@ -733,10 +675,8 @@ PWA 程式碼位置：[貼 GitHub repo 連結]
 
 **目標**：定出 Google Sheets 裡每張表的欄位，這是後面 API 和前端資料串接的依據。
 
-**開始前準備**：Phase 1 交接摘要
-
 **這階段要定案的表**（實際定案內容，跟原本大綱有些出入，見下方「跟大綱不同的地方」）：
-- [x] `Campaigns`（預購檔期）：campaign_id、name、status（upcoming/active/ended）、start_date、end_date、total_quantity_cap
+- [x] `Campaigns`（預購檔期）：campaign_id、name、status（upcoming/active/ended，PR #53 後只剩 active/ended）、start_date、end_date、total_quantity_cap
 - [x] `PickupSlots`（取貨時段，**新增**）：slot_id、campaign_id、date、time_range
 - [x] `Products`（商品）：product_id、campaign_id、name（含「（有餡）/（無餡）」前綴）、category、price、max_per_order、active
 - [x] `Orders`（訂單）：order_id、campaign_id、created_at、customer_name、customer_phone、pickup_slot_id、total、payment_status（pending/confirmed）、order_status（**4 段**：new/prepping_done/picked_up/cancelled）、note
@@ -755,14 +695,7 @@ PWA 程式碼位置：[貼 GitHub repo 連結]
 
 **驗收標準**：每張表的欄位跟 Phase 0 定案的頁面需求對得起來；月報表分頁的公式數字已經跟老闆核對過，正確。
 
-**▶ 交接摘要範本**：
-```
-延續「歪嘴雞烘焙預購系統」，已完成 Phase 2：Google Sheets 資料表設計，
-已建好 8 個分頁（6 張原始資料表 + 訂單查詢 + 月報表），已匯入 Google 雲端空間。
-表結構：[貼上最終欄位清單，或附 Sheets 連結]
-
-現在要做 Phase 3：Cloudflare Worker API，讀寫這份 Google Sheets。
-```
+（上面是 Phase 2 當時定案的欄位，之後陸續新增的欄位——大小規格、宅配、`unit`、`quantity_cap`、`low_stock_threshold` 等——以 `worker/README.md` 為準。）
 
 ---
 
@@ -770,25 +703,14 @@ PWA 程式碼位置：[貼 GitHub repo 連結]
 
 **目標**：寫出 Worker，能讀寫 Phase 2 定的 Google Sheets，提供給前台網站與 PWA 呼叫。
 
-**開始前準備**：Phase 2 交接摘要（表結構）
-
 **建議再拆成幾個小任務，各自可以是獨立對話**：
-- [ ] 3-1：Worker 專案初始化 + Google Sheets API 授權設定（Service Account）
-- [ ] 3-2：讀取 API（GET 商品列表、GET 檔期資訊、GET 訂單列表）
-- [ ] 3-3：寫入 API（POST 建立訂單，含訂單編號產生邏輯 `ORD-YYYYMMDD-XXXX`）
-- [ ] 3-4：老闆端寫入 API（改商品、改公告、改付款狀態、開關預購）
-- [ ] 3-5：PIN 登入 + 短期 Token 驗證機制
+- [x] 3-1：Worker 專案初始化 + Google Sheets API 授權設定（Service Account）
+- [x] 3-2：讀取 API（GET 商品列表、GET 檔期資訊、GET 訂單列表）
+- [x] 3-3：寫入 API（POST 建立訂單，含訂單編號產生邏輯 `ORD-YYYYMMDD-XXXX`）
+- [x] 3-4：老闆端寫入 API（改商品、改公告、改付款狀態、開關預購）
+- [x] 3-5：PIN 登入 + 短期 Token 驗證機制
 
 **驗收標準**：用 Postman 或瀏覽器測試每個 API endpoint，能正確讀到/寫入 Google Sheets 的資料。
-
-**▶ 交接摘要範本**：
-```
-延續「歪嘴雞烘焙預購系統」，已完成 Phase 3：Cloudflare Worker API。
-已完成的 endpoint 清單：[貼 API 清單，例如 GET /products、POST /orders...]
-Worker 程式碼位置：[GitHub repo 連結]
-
-現在要做 Phase 4：顧客預購網站前端，串接這些 API。
-```
 
 ---
 
@@ -796,29 +718,17 @@ Worker 程式碼位置：[GitHub repo 連結]
 
 **目標**：做出顧客看到的單頁式預購網站，串接 Phase 3 的 API。
 
-**開始前準備**：Phase 3 交接摘要（API 清單）
-
 **產出**：
 - [x] 公告 → 選商品 → 選數量/口味 → 選取貨日期/時段 → 填姓名電話 → 送出訂單 → 顯示訂單編號 + 匯款資訊 → 前往 LINE / 複製訂單編號
 
 **驗收標準**：從真實手機瀏覽器（iPhone Safari）走完整個下單流程，訂單真的寫進 Google Sheets。
-（目前只在電腦瀏覽器上本機測試過完整流程，訂單有真的寫進 Google Sheets；還沒用真實 iPhone Safari 測過，之後找時間補測。）
-
-**▶ 交接摘要範本**：
-```
-延續「歪嘴雞烘焙預購系統」，已完成 Phase 4：顧客預購網站，已可正常下單。
-網站程式碼位置：[GitHub repo 連結]
-
-現在要做 Phase 5：預購總量上限控制邏輯。
-```
+（Phase 7 上線時已用手機行動網路實測完整下單流程，訂單有寫進 Google Sheets。）
 
 ---
 
 ## Phase 5：預購總量控制邏輯
 
 **目標**：顧客送出訂單時,檢查該檔期/該時段是否已達總量上限,超過則擋下並提示。
-
-**開始前準備**：Phase 4 交接摘要
 
 **產出**：
 - [x] 送出訂單前檢查 `total_quantity_cap` 是否還有餘量
@@ -827,20 +737,11 @@ Worker 程式碼位置：[GitHub repo 連結]
 
 **驗收標準**：手動把上限設低（例如設 2），測試第 3 筆訂單會被擋下。
 
-**▶ 交接摘要範本**：
-```
-延續「歪嘴雞烘焙預購系統」，已完成 Phase 5：總量控制邏輯已測試通過。
-
-現在要做 Phase 6：把 Phase 1 的假資料 PWA 換成串接真實 API。
-```
-
 ---
 
 ## Phase 6：PWA 串接真實 API
 
 **目標**：把 Phase 1 的假資料版 PWA，改成真的呼叫 Phase 3 的 API，讀寫真實 Google Sheets 資料。
-
-**開始前準備**：Phase 1（PWA 程式碼）+ Phase 3（API 清單）的交接摘要
 
 **產出**：
 - [x] 今日 Dashboard 顯示真實數字
@@ -850,14 +751,7 @@ Worker 程式碼位置：[GitHub repo 連結]
 - [x] PIN 登入串接 Phase 3-5 的驗證機制
 
 **驗收標準**：老闆用真機走一輪完整操作流程,所有資料變更都真的反映在 Google Sheets。已完成，
-見上方「Phase 6 備註」；目前暫時部署在 GitHub Pages 方便測試，正式部署留給 Phase 7。
-
-**▶ 交接摘要範本**：
-```
-延續「歪嘴雞烘焙預購系統」，已完成 Phase 6：PWA 已串接真實 API，功能可正常運作。
-
-現在要做 Phase 7：Cloudflare Pages 部署 + 網域設定。
-```
+見上方「Phase 6 備註」。
 
 ---
 
@@ -872,16 +766,7 @@ Worker 程式碼位置：[GitHub repo 連結]
 - [x] Worker（API）CORS 本來就是開放所有來源，不用改，三個新網域都測試過能正常呼叫
 - [x] DNS 設定確認可正常連線（已用手機行動網路實測三個網址）
 
-**驗收標準**：三個網址都能從外部（非本機）正常打開並運作。已完成，詳見上方「目前進度」
-Phase 7 條目。
-
-**▶ 交接摘要範本**：
-```
-延續「歪嘴雞烘焙預購系統」，已完成 Phase 7：已部署上線。
-網址：顧客端 [連結]、老闆端 [連結]
-
-現在要做 Phase 8：視覺/UX 打磨與上線前最終測試。
-```
+**驗收標準**：三個網址都能從外部（非本機）正常打開並運作。已完成，詳見上方「Phase 7 備註」。
 
 ---
 
@@ -901,11 +786,7 @@ Phase 7 條目。
 ## 附錄：每次開新對話的建議開場白模板
 
 ```
-我在做「歪嘴雞烘焙預購系統」的 [第 X 階段名稱]。
-背景：預購型貝果訂購系統，技術棧 Cloudflare Pages + Worker + Google Sheets，
-不需要 D1/Durable Objects，總量控制用簡單檢查即可，付款是人工核對截圖。
+我在做「歪嘴雞烘焙預購系統」，背景與進度請先看 CLAUDE.md。
 
-已完成進度：[貼上一階段的交接摘要]
-
-這次要做：[這階段的目標，複製上面對應 Phase 的「目標」欄位]
+這次要做：[這次的目標]
 ```
